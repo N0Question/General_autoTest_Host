@@ -1,0 +1,23 @@
+#序号	名称	设置	注释
+#	一轮测试		
+#	一轮测试		
+0	temp	-20	
+1	power	off	
+2	temp	on	
+3	wait	3600	
+4	power	on	
+0	temp	0	
+5	wait	3600	
+#	热启		
+1	power	off	
+2	wait	5	
+3	power	on	
+4	bd	10	
+5	bind	1	
+6	bd	11	
+7	power	off	
+8	wait	5	
+9	power	on	
+10	bd	13	
+11	bind	1	
+12	bd	14	

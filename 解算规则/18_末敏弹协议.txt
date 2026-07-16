@@ -1,0 +1,20 @@
+#	大小端	是否保存	系数	标题	排序	注释
+#	baund	230400				
+#	check	none	(none/odd/even			
+#	header	55	AA	10		
+#	latitude	39.73675				
+#	longitude	116.50984				
+#	height	20				
+#	alignment_time	100				
+#	receive_hz	50				
+#	rulehead	<				
+B	0	1	0x55	N		
+B	0	1	0xAA	N		
+B	0	1	0x10	N		
+B	1	1	0x29	0		
+I	1	0.001	航向角	1		
+i	1	0.001	俯仰角	2		
+i	1	0.001	横滚角	3		
+B	0	1	N	N		
+h	0	1	N	N		
+B	0	1	校验和	N		

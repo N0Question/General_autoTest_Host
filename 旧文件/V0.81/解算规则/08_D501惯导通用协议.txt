@@ -1,0 +1,34 @@
+#	大小端	是否保存	系数	标题	排序	注释
+#	baund	230400				
+#	check	none	(none/odd/even			
+#	header	55	AA	
+#	latitude	39.73675				
+#	longitude	116.50984				
+#	height	20				
+#	alignment_time	100				
+#	receive_hz	10				
+#	rulehead	<				
+B	0	1	0x55	N		
+B	0	1	0xAA	N		
+B	0	1	0x3A	N		
+h	1	1	帧计数	0		
+i	1	1	Ax	4		
+i	1	1	Ay	5		
+i	1	1	Az	6		
+i	1	1	Gx	1		
+i	1	1	Gy	2		
+i	1	1	Gz	3		
+i	0	1	无	N		
+i	0	1	无	N		
+f	0	1	无	N		
+h	1	1	Ax温度	N		
+h	1	1	Ay温度	N		
+h	1	1	Az温度	N		
+h	1	1	Gx温度	N		
+h	1	1	Gy温度	N		
+h	1	1	Gz温度	N		
+h	1	1	板子温度	N		
+h	1	1	X光信号	N		
+h	1	1	Y光信号	N		
+h	1	1	Z光信号	N		
+B	0	1	校验和	N		

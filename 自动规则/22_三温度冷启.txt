@@ -1,0 +1,135 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ		
+0	power	off
+1   wait    10700
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ		
+0	power	off
+1   wait    10700
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600
+#	Ò»ÂÖ²âÊÔ	
+0	power	on
+0	test	on
+1   wait    600
+0	test	off
+0	power	off
+1   wait    600

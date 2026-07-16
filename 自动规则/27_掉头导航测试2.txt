@@ -1,0 +1,36 @@
+#序号	名称	设置	注释
+#	一轮测试		
+#	一轮测试		
+0	temp	26
+1   temp    on
+1	power	off	
+#	热启		
+1	power	off	
+2	wait	30
+3	power	on	
+4	bd	10	
+5	bwat	20	
+6	bd	11	
+#	热启		
+1	power	off	
+2	wait	1800	
+3	power	on	
+4	bd	10	
+5	bwat	20	
+6	bd	12
+#	热启		
+1	power	off	
+2	wait	1800	
+3	power	on	
+4	bd	13
+5	bwat	20	
+6	bd	14
+#	热启		
+1	power	off	
+2	wait	1800	
+3	power	on	
+4	bd	13
+5	bwat	20	
+6	bd	15
+7   temp    off
+8   power   off

@@ -1,0 +1,45 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD1	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD2	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD3	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD4	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD5	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD6	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD7	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD8	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD9	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD10	
+1	bd	on	
+5	wait	14400	
+#	Ò»ÂÖ²âÊÔ		
+0	test	BD11	
+1	bd	on	
+5	wait	14400	

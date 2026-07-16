@@ -1,9 +1,0 @@
-#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ		
-#	Ò»ÂÖ²âÊÔ		
-2	power	off
-1	wait	3	
-3	power	v:0
-1	wait	1
-2	power	on
-1	wait	3	
-3	power	step:10:0.01:5

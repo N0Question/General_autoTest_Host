@@ -1,0 +1,64 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ		
+0	temp	26	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	SL_26_1	
+4	bd	2	
+7	name	LW_26_1	
+8	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	SL_26_2	
+4	bd	2	
+7	name	LW_26_2	
+8	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	SL_26_3	
+4	bd	2	
+7	name	LW_26_3	
+8	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	SL_26_4	
+4	bd	2	
+7	name	LW_26_4	
+8	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	JT_26_1	
+4	bd	3	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	65	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	10800	
+3	name	SL_65_1	
+4	bd	2	
+7	name	LW_65_1	
+8	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	SL_65_2	
+4	bd	2	
+7	name	LW_65_2	
+8	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	SL_65_3	
+4	bd	2	
+7	name	LW_65_3	
+8	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	SL_65_4	
+4	bd	2	
+7	name	LW_65_4	
+8	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	
+3	name	JT_65_1	
+4	bd	3	
+0	temp	26	
+#	Ò»ÂÖ²âÊÔ		
+1	wait	60	

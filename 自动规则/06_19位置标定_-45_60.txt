@@ -1,0 +1,63 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-45
+1	wait	18000	
+2	name	BD_-45
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-35
+1	wait	14400	
+2	name	BD_-35
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-25
+1	wait	14400	
+2	name	BD_-25
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-15
+1	wait	14400	
+2	name	BD_-15
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-5
+1	wait	14400	
+2	name	BD_-5
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	5
+1	wait	14400	
+2	name	BD_5
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	15
+1	wait	14400	
+2	name	BD_15
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	25
+1	wait	14400	
+2	name	BD_25
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	35
+1	wait	14400	
+2	name	BD_35
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	45
+1	wait	14400	
+2	name	BD_45
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	55
+1	wait	14400	
+2	name	BD_55
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	65
+1	wait	14400	
+2	name	BD_65
+3	bd	1	
+0	temp	25

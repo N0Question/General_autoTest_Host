@@ -1,0 +1,57 @@
+#序号	名称	设置	注释
+#	默认配置文件，记录各通用参数默认设置，建议使用excel打开修改		
+#	打开上位机默认载入一次此配置文件，请!谨慎!修改此文件	
+# --------------转台转动配置项--------------	
+0	in_spd	30	转台内框速度
+1	in_acc	20	转台内框加速度
+2	out_spd	30	转台外框速度
+3	out_acc	20	转台外框加速度
+4	hold_time	15	转台转动后等待时间!!!!!!勿动!!!!!!
+5	turntable_check_status	0	1:根据转台状态反馈来决定是否到位/0:转动命令发送后固定等待hold_time
+6	save_turntable_status   0   是否保存转台运动信息
+# --------------保存文件配置项--------------
+5	save_alldata_ms	1	是否保存所有毫秒值 1True/0False
+6	save_alldata_s	1	是否保存所有秒值 1True/0False
+7	save_alldata_calib	0	是否保存19位置标定calib文件 1True/0False
+8	save_alldata_bin	1	是否保存所有16进制原始数
+8	save_readydata_ms	0	是否保存到位毫秒值 1True/0False
+9	save_readydata_s	1	是否保存到位秒值 1True/0False
+11	save_BD_1file	1	将标定过程各点存储到一个文件/0:多个文件----废弃中----
+12	save_decimal_point	6	保存时保留小数点后几位
+13	save_test_title	0	创建文件时将协议中的标题内容一并保存
+14	save_ascii_log	0	保存ascii装订内容
+15	save_hex_log	0	保存hex装订内容
+# --------------其他杂项配置项--------------
+14	power_model	1	电源型号：1程控电源，2继电器
+# --------------默认选项配置项--------------
+15	default_protocal	23	默认通讯协议选择序号
+16	default_turntable	0	默认转台控制选择序号
+17	default_binding	0	默认装订选择序号
+18	default_automatic	0	默认自动测试选择序号
+# --------------经纬高度配置项--------------
+21	default_longitude	116.50271	默认经度
+22	default_latitude	39.73155	默认纬度
+23	default_g	9.801538877	默认重力
+24	default_loc_decimal	9	默认经纬度保留精度
+# --------------表格显示配置项--------------
+21	default_table_row	50	默认表格行数
+22	default_table_col	6	默认表格列数
+23	default_table_round	6	默认表格精度
+# --------------绘图刷新配置项--------------
+20	default_plot_enable	1	是否开启绘图
+21	default_plot_limit	100000	大于此项时改变刷新频率
+22	default_plot_time	1000	更改后的刷新频率(ms)
+23	default_plot_load	1000	载入文件时使用的更新频率(ms)
+24	default_plot_decimal	6	绘图栏显示数据精度
+# --------------数据解算配置项--------------
+23	decode_header_type	1	0:使用单帧头模式/1:使用2帧头中间模式/2:使用帧头帧尾模式----废弃中----
+24	default_sumcheck_flag	0	是否根据校验保存数据：0:全部保存/1:校验通过保存
+# --------------通用装订配置项--------------
+25	default_bindWidth_0	50	通用装订0列宽度
+26	default_bindWidth_1	100	通用装订0列宽度
+27	default_bindWidth_2	150	通用装订0列宽度
+# --------------卫导接收配置项--------------
+25	default_append_sate	1	1:将卫导数据追加到惯导数据后
+26	default_save_sate	1	1:将卫导数据保存到单独文件中
+27	default_clear_msg	1	1:惯导保存卫导数据后，是否清零
+28	default_sate_length	20	追加到惯导数据中时，默认追加数据长度

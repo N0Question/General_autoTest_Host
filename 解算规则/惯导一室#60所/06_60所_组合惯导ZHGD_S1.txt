@@ -1,0 +1,24 @@
+#	大小端	是否保存	系数	标题	排序	注释
+#	baund	230400				
+#	check	none	(none/odd/even			
+#	header	5A	5A			
+#	comm_hz	200				
+#	rulehead	<				
+B	0	1	0x5A	N		
+B	0	1	0x5A	N		
+B	1	1	卫星状态字	N	
+B	1	1	惯导状态字	N		
+h	1	0.01	Gx	N		
+h	1	0.01	Gy	N		
+h	1	0.01	Gz	N		
+h	1	0.001	Ax	N		
+h	1	0.001	Ay	N		
+h	1	0.001	Az	N		
+h	1	0.01	俯仰	N		
+h	1	0.01	航向	N		
+h	1	0.01	滚转	N		
+i	1	0.0000001	纬度	N		
+h	1	1	高度	N		
+i	1	0.0000001	经度	N		
+h	1	0.1	载体速度	N		
+B	1	1	校验和	N		

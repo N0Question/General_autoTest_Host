@@ -1,0 +1,39 @@
+#	是否保存	系数	标题	排序	注释
+#	check	none	(none/odd/even		
+#	header	EB	90		
+#	ender	C0	FF		
+#	latitude	39.73675			
+#	longitude	116.50984			
+#	height	20			
+#	alignment_time	200			
+#	receive_hz	50	
+#	special_flag	JG	特殊标志位		
+#	rulehead	<		
+B	0	1	0xEB	N	
+B	0	1	0x90	N	
+B	0	1	0x40	N	
+B	1	1	工作状态字	N	
+f	1	1	载机X轴角速度	N	
+f	1	1	载机Y轴角速度	N	
+f	1	1	载机Z轴角速度	N	
+f	1	1	载机X轴加速度	N	
+f	1	1	载机Y轴加速度	N	
+f	1	1	载机Z轴加速度	N	
+i	1	1.00E-07	组合纬度	N	
+i	1	1.00E-07	组合经度	N	
+f	1	1	组合高度	N	
+h	1	0.01	组合北速	N	
+h	1	0.01	组合东速	N	
+h	1	0.01	组合地速	N	
+h	1	0.01	组合滚转角	N	
+h	1	0.01	组合俯仰角	N	
+H	1	0.01	组合航向角	N	
+h	1	0.01	纯惯滚转角	N	
+h	1	0.01	纯惯俯仰角	N	
+H	1	0.01	纯惯航向角	N	
+h	1	0.01	航姿滚转角	N	
+h	1	0.01	航姿俯仰角	N	
+H	1	0.01	航姿航向角	N	
+B	1	1	导航被欺骗	N	
+B	1	1	传感器标志	N	
+H	1	1	校验位	N	

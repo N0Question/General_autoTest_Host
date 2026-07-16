@@ -1,0 +1,19 @@
+#序号	名称	COM	波特率	校验位	停止位	注释
+#   	默认配置文件，记录各个COM口默认设置，建议使用excel打开修改		
+#	打开上位机默认载入一次此配置文件，如果检测不到默认COM会定时修改为无校验		
+1	turntable	COM2	115200	无校验	Stop1	无	转台
+2	power	COM5	9600	无校验	Stop1	无	电源
+3	temp	COM4	460800	无校验	Stop1	无	温箱
+3	binding	all	460800	无校验	Stop1	无	装订
+4	tab_1	COM1	460800	无校验	Stop1	开启	多路1/单路，同步更新
+5	tab_2	COM2	614400	无校验	Stop1	开启	多路2
+6	tab_3	COM25	460800	无校验	Stop1	关闭	多路3
+7	tab_4	COM32	460800	无校验	Stop1	关闭	多路4
+8	tab_5	COM33	460800	无校验	Stop1	关闭	多路5
+9	tab_6	COM10	460800	无校验	Stop1	关闭	多路6
+10	tab_7	COM11	460800	无校验	Stop1	关闭	多路7
+11	tab_8	COM12	460800	无校验	Stop1	关闭	多路8
+12	tab_9	COM13	460800	无校验	Stop1	关闭	多路9
+13	tab_10	COM14	460800	无校验	Stop1	关闭	多路10
+14	tab_11	COM15	460800	无校验	Stop1	关闭	多路11
+15	tab_12	COM16	460800	无校验	Stop1	关闭	多路12

@@ -1,0 +1,97 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-46	
+1	wait	10	
+2	name	19wzBD_-45	
+3	bd	1	
+4	name	slsBD_-45	
+5	bd	8	
+6	name	slBD_-45	
+7	bd	9	
+8	name	lwBD_-45	
+9	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-30	
+1	wait	5400	
+2	name	19wzBD_-30	
+3	bd	1	
+4	name	slsBD_-30	
+5	bd	8	
+6	name	slBD_-30	
+7	bd	9	
+8	name	lwBD_-30	
+9	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-15	
+1	wait	5400	
+2	name	19wzBD_-15	
+3	bd	1	
+4	name	slsBD_-15	
+5	bd	8	
+6	name	slBD_-15	
+7	bd	9	
+8	name	lwBD_-15	
+9	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	0	
+1	wait	5400	
+2	name	19wzBD_0	
+3	bd	1	
+4	name	slsBD_0	
+5	bd	8	
+6	name	slBD_0	
+7	bd	9	
+8	name	lwBD_0	
+9	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	15	
+1	wait	5400	
+2	name	19wzBD_15	
+3	bd	1	
+4	name	slsBD_15	
+5	bd	8	
+6	name	slBD_15	
+7	bd	9	
+8	name	lwBD_15	
+9	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	30	
+1	wait	5400	
+2	name	19wzBD_30	
+3	bd	1	
+4	name	slsBD_30	
+5	bd	8	
+6	name	slBD_30	
+7	bd	9	
+8	name	lwBD_30	
+9	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	45	
+1	wait	5400	
+2	name	19wzBD_45	
+3	bd	1	
+4	name	slsBD_45	
+5	bd	8	
+6	name	slBD_45	
+7	bd	9	
+8	name	lwBD_45	
+9	bd	4	
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+0	temp	60	
+1	wait	5400	
+2	name	19wzBD_60	
+3	bd	1	
+4	name	slsBD_60	
+5	bd	8	
+6	name	slBD_60	
+7	bd	9	
+8	name	lwBD_60	
+9	bd	4	

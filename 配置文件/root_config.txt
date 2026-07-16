@@ -1,0 +1,7 @@
+#序号	名称	设置	注释
+#	开发者配置文件
+# -------------调试调试配置项#202503#--------------
+-1	show_debug_tabwidget	0	是否显示调试窗口
+-1	show_hiddenTab_tools_3XBD	1	是否显示页面_三轴标定参数补偿
+-1  show_hiddenTab_tools_dropFrame    0	是否显示页面_丢帧补偿
+-1	show_hiddenTab_tools_parameter	0	是否显示页面_参数计算

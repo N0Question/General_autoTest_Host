@@ -1,0 +1,20 @@
+#	大小端	是否保存	系数	标题	排序	注释
+#	baund	230400				
+#	check	none	(none/odd/even			
+#	header	55	AA			
+#	receive_hz	10				
+#	rulehead	<				
+B	0	1	0x55	N		
+B	0	1	0xAA	N		
+B	0	1	0x36	N		
+I	1	1	帧计数	0		
+i	1	0.000001	Gx	1		
+i	1	0.000001	Gy	2		
+i	1	0.000001	Gz	3		
+i	1	0.000001	Ax	N		
+i	1	0.000001	Ay	N		
+i	1	0.000001	Az	N		
+h	1	0.008	系统温度	N		
+H	1	1	年月日	N		
+I	1	0.1	0.1ms计数	N		
+B	0	1	校验和	N		

@@ -1,0 +1,39 @@
+#	是否保存	系数	标题	排序	注释
+#	com	COM1			
+#	baund	230400			
+#	check	none	(none/odd/even		
+#	header	5A	5A		
+#	receive_hz	100		
+#	rulehead	<			
+B	0	1	5A	N	
+B	0	1	5A	N	
+f	1	3600	Gx	0	（5ms的角度增量，单位为弧度）
+f	1	3600	Gy	1	（5ms的角度增量，单位为弧度）
+f	1	3600	Gz	2	（5ms的角度增量，单位为弧度）
+f	1	1	Ax	3	（5ms的速度增量，m/s）
+f	1	1	Ay	4	（5ms的速度增量，m/s）
+f	1	1	Az	5	（5ms的速度增量，m/s）
+B	0	1	帧计数	N	
+B	0	1	IMU状态	N	
+f	1	1	经度	N	
+f	1	1	纬度	N	
+f	1	1	高度	N	
+h	1	1	俯仰角	N	
+h	1	1	真航向	N	
+h	1	1	滚转角	N	
+f	1	1	温度	N	
+h	1	1	东向速度	N	
+h	1	1	北向速度	N	
+h	1	1	天向速度	N	
+B	0	1	设备ID号:FG	N	
+B	0	1	惯导工作状态	N	
+h	1	1	航向角速率	N	
+h	1	1	俯仰角速率	N	
+h	1	1	倾斜角速率	N	
+h	1	1	X向加速度	N	
+h	1	1	Y向加速度	N	
+h	1	1	Z向加速度	N	
+B	0	1	数据有效标志	N	
+h	0	1	故障字	N	
+B	0	1	保留	N	
+B	0	1	校验和	N	

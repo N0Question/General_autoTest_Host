@@ -1,0 +1,3 @@
+from .inits_debugMsg import MainWindowInitDebugMsg
+from .inits_showMsg import MainWindowInitShowMsg
+from .inits_funcTest import MainWindowInitFuncTest

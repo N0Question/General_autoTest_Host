@@ -1,0 +1,2 @@
+TurnTable	GX_mean	GY_mean	GZ_mean	AX_mean	AY_mean	AZ_mean	GX_temp	GY_temp	GZ_temp	AX_temp	AY_temp	AZ_temp	GX_std	GY_std	GZ_std	AX_std	AY_std	AZ_std	average_length	count_diff	Hz_roll3_max_X	Hz_roll3_max_Y	Hz_roll3_max_Z
+loc[0.0_0.0_0.0_0.0]	-11.423828	9.616634	-1.559365	0.000667	9.801411	0.028242	-47.338865	-47.338865	-47.338865	-45.613975	-45.613975	-45.613975	0.073373	0.154134	0.124974	0.000119	0.000096	0.000136	3600	0.0	0.000061	0.015507	0.004619	901051	589014	1014994

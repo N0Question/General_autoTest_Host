@@ -1,0 +1,33 @@
+#	是否保存	系数	标题	排序	字长
+#	send_ms	500			
+#	send	RT			
+#	rece	BC			
+#	addr	6				
+#	mode	1553	
+#	head	0256			
+#	rulehead	>			
+H	1	1	字头	N	1
+H	1	1	帧计数	N	1
+h	1	1	卫星时间有效	N	1
+h	1	1	GPS周秒	N	2
+i	1	1	GPS周秒	N	1
+H	1	1	BDS周秒	N	2
+i	1	1	BDS周	N	2
+i	1	1	UTC天秒	N	2
+B	1	1	UTC日	N	0.5
+B	1	1	UTC月	N	0.5
+H	1	1	UTC年	N	1
+I	1	1	GPS参与定位星位	N	2
+B	1	1	接收机定位状态	N	0.5
+B	1	1	当前模式最高信噪比	N	0.5
+B	1	1	定位故障字	N	0.5
+B	1	1	BDS天线阵源检测状态	N	0.5
+H	1	0.01	PDOP	N	1
+H	1	0.01	HDOP	N	1
+H	1	0.01	VDOP	N	1
+H	1	0.01	TDOP	N	1
+H	1	0.01	GDOP	N	1
+f	1	1	时钟偏差	N	2
+f	1	1	时钟频偏	N	2
+i	1	1	相对开机时间	N	2
+H	1	1	校验和字	N	1

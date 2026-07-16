@@ -1,0 +1,11 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ		
+0	wait	3	
+3	name	bd_-55	
+0	wait	5	
+0   test    on
+0	wait	1	
+2   bind    send
+3   wait    300
+2   bind    send
+4   test    off

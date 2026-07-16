@@ -1,0 +1,152 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ			
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready1
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready2
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready3
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready4
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready5
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready6
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready7
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready8
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready9
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready10
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready11
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready12
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready13
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready14
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready15
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready16
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready17
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready18
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready19
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready20
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready21
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready22
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready23
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready24
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready25
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready26
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready27
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready28
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready29
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready30
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready31
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready32
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready33
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready34
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready35
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready36
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready37
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready38
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready39
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready40
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready41
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready42
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready43
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready44
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready45
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready46
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready47
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready48
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready49
+2	bd	7	
+#	Ò»ÂÖ²âÊÔ	
+1	name	ready50
+2	bd	7	

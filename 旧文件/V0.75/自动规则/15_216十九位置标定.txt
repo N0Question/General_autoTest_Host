@@ -1,0 +1,81 @@
+#序号	名称	设置	注释
+#	一轮测试		
+#	一轮测试		
+0	temp	-56	
+1	wait	12600	
+2	name	19wzBD_-55	
+3	bd	1	
+4	name	slBD_-55	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	-40	
+1	wait	5400	
+2	name	19wzBD_-40	
+3	bd	1	
+4	name	slBD_-40	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	-25	
+1	wait	5400	
+2	name	19wzBD_-25	
+3	bd	1	
+4	name	slBD_-25	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	-10	
+1	wait	5400	
+2	name	19wzBD_-10	
+3	bd	1	
+4	name	slBD_-10	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	5	
+1	wait	5400	
+2	name	19wzBD_5	
+3	bd	1	
+4	name	slBD_5	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	20	
+1	wait	5400	
+2	name	19wzBD_20	
+3	bd	1	
+4	name	slBD_20	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	35	
+1	wait	5400	
+2	name	19wzBD_35	
+3	bd	1	
+4	name	slBD_35	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	50	
+1	wait	5400	
+2	name	19wzBD_50	
+3	bd	1	
+4	name	slBD_50	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	65	
+1	wait	5400	
+2	name	19wzBD_65	
+3	bd	1	
+4	name	slBD_65	
+5	bd	9	
+#	一轮测试		
+#	一轮测试		
+0	temp	75	
+1	wait	5400	
+2	name	19wzBD_75	
+3	bd	1	
+4	name	slBD_75	
+5	bd	9	

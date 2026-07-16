@@ -1,0 +1,15 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+0	temp	10
+1	wait	10	
+2	name	BD_10
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	25
+1	wait	7200	
+2	name	BD_25
+3	bd	1	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	40
+1	wait	7200	
+2	name	BD_40
+3	bd	1	

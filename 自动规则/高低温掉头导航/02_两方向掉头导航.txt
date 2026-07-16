@@ -1,0 +1,16 @@
+#序号	名称	设置	注释
+#	一轮测试		
+#	一轮测试		
+2   power   off 
+3   wait    10
+4   power   on
+6   bind    1
+5   bwat    30
+7   bd  12
+#	一轮测试		
+2   power   off 
+3   wait    10
+4   power   on
+6   bind    1
+5   bwat    30
+7   bd  14

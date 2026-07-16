@@ -1,0 +1,35 @@
+#	是否保存	系数	标题	排序	注释
+#	baund	230400			
+#	check	none	(none/odd/even		
+#	header	A5A5			
+#	receive_hz	10			
+#	rulehead	<			
+B	0	1	0xA5	N	
+B	0	1	50xAA	N	
+B	1	0.00001	大地坐标lat	N	
+i	1	0.00001	大地坐标lon	N	
+i	1	1	大地坐标high	N	
+i	1	0.01	东向速度Ve	N	
+i	1	0.01	北向速度Vn	N	
+i	1	0.01	天向速度Vu	N	
+i	1	1	定位模式	N	
+B	1	1	定位状态	N	
+B	1	1	自检状态	N	
+B	1	1	接收卫星数svNum	N	
+B	1	1	接收卫星平均载噪比	N	
+B	1	1	载噪比≥35dB卫星数	N	
+h	1	0.01	PDOP	N	
+h	1	0.01	HDOP	N	
+h	1	0.01	VDOP	N	
+h	1	0.01	TDOP	N	
+h	1	0.01	GDOP	N	
+B	1	1	UTC时	N	
+B	1	1	UTC分	N	
+B	1	1	UTC秒	N	
+H	1	1	UTC毫秒	N	
+H	1	1	UTC年	N	
+B	1	1	UTC月	N	
+B	1	1	UTC日	N	
+H	1	1	帧计数	N	
+H	1	1	帧尾	N	
+H	1	1	CRC校验位	N	

@@ -1,0 +1,29 @@
+#	是否保存	系数	标题	排序	注释
+#	baund	460800			
+#	check	none	(none/odd/even		
+#	header	EB	90		
+#	receive_hz	200			
+#	rulehead	<			
+B	0	1	0xEB	N	
+B	0	1	0x90	N	
+B	1	1	陀螺温度	N	
+B	1	1	惯组ID号字	N	
+f	1	1	Ax	4	
+f	1	1	Ay	5	
+f	1	1	Az	6	
+f	1	1	Gx	1	
+f	1	1	Gy	2	
+f	1	1	Gz	3	
+B	1	0.25	28V电压	N	
+b	1	1	MCU温度	N	
+B	1	0.03125	MCU内部参考电压	N	
+B	1	1	备用字节	N	
+B	1	1	备用字节	N	
+B	1	1	陀螺超量程字节	N	
+B	1	1	电压超量程字节	N	
+B	1	0.03125	5V电压	N	
+B	1	0.03125	3.3V电压	N	
+B	1	0.03125	1.2V电压	N	
+B	1	0.0625	软件版本号	N	
+B	1	1	帧计数	0	
+H	1	1	校验和	N	

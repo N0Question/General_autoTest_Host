@@ -1,0 +1,15 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ		
+#	Ò»ÂÖ²âÊÔ		
+1	power	off	
+2	wait	5	
+3	power	on	
+4	bd	10	
+5	bind	1	
+6	bd	11	
+7	power	off	
+8	wait	5	
+9	power	on	
+10	bd	13	
+11	bind	1	
+12	bd	14	

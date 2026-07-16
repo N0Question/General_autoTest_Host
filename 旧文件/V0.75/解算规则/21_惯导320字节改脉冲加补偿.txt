@@ -1,0 +1,124 @@
+#	是否保存	系数	标题	排序	注释
+#	check	none	(none/odd/even		
+#	header	55	AA		
+#	ender	C0	FF		
+#	latitude	39.73675			
+#	longitude	116.50984			
+#	height	20			
+#	alignment_time	200			
+#	receive_hz	200	
+#	special_flag	JG	特殊标志位
+#	rulehead	>
+B	0	1	0x55	N	
+B	0	1	0xAA	N	
+B	0	1	校验和	N	（3~61字节的和）
+B	0	1	PPS到来时间差	N	（4us/LSB
+H	0	1	状态字	N	（0x07:标识PPS到来；）
+h	1	0.0025	z加表温度	12	（输出值/16为加表温度℃）
+I	1	0.005	5ms计数	0	
+f	1	41256000	Gx	1	（5ms的角度增量，单位为弧度）
+f	1	41256000	Gy	2	（5ms的角度增量，单位为弧度）
+f	1	41256000	Gz	3	（5ms的角度增量，单位为弧度）
+f	1	200	Ax	4	（5ms的速度增量，m/s）
+f	1	200	Ay	5	（5ms的速度增量，m/s）
+f	1	200	Az	6	（5ms的速度增量，m/s）
+h	1	0.0625	x陀螺温度	7	（输出值为陀螺温度℃）
+h	1	0.0625	y陀螺温度	8	（输出值为陀螺温度℃）
+h	1	0.0625	z陀螺温度	9	（输出值为陀螺温度℃）
+h	1	0.0025	x加表温度	10	（输出值/16为加表温度℃）
+h	1	0.0025	y加表温度	11	（输出值/16为加表温度℃）
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+B	0	1	0xC0	N	
+B	0	1	0xFF	N	
+#	rulehead	<
+B	0	1	0x66	N	
+B	0	1	0x99	N	
+B	0	1	校验和	N	（3~61字节的和）
+H	0	1	GPS周	N	
+I	0	1	GPS毫秒	N	（单位：ms
+d	0	1	ECEF坐标系位置X	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系位置Y	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系位置Z	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系速度X	N	（低字节在前）单位：m/s
+d	0	1	ECEF坐标系速度Y	N	（低字节在前）单位：m/s
+d	0	1	ECEF坐标系速度Z	N	（低字节在前）单位：m/s
+B	0	1	卫星数	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+B	0	1	0xC0	N	
+B	0	1	0xFF	N	
+#	rulehead	<
+B	0	1	0x66	N	
+B	0	1	0x99	N	
+B	0	1	校验和	N	（3~61字节的和）
+H	0	1	GPS周	N	
+I	0	1	GPS毫秒	N	（单位：ms
+d	0	1	ECEF坐标系位置X	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系位置Y	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系位置Z	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系速度X	N	（低字节在前）单位：m/s
+d	0	1	ECEF坐标系速度Y	N	（低字节在前）单位：m/s
+d	0	1	ECEF坐标系速度Z	N	（低字节在前）单位：m/s
+B	0	1	卫星数	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+B	0	1	0xC0	N	
+B	0	1	0xFF	N	
+#	rulehead	<
+B	0	1	0x66	N	
+B	0	1	0x99	N	    
+B	0	1	校验和	N	（3~61字节的和）
+H	0	1	GPS周	N	
+I	0	1	GPS毫秒	N	（单位：ms
+d	0	1	ECEF坐标系位置X	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系位置Y	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系位置Z	N	（低字节在前）单位：m
+d	0	1	ECEF坐标系速度X	N	（低字节在前）单位：m/s
+d	0	1	ECEF坐标系速度Y	N	（低字节在前）单位：m/s
+d	0	1	ECEF坐标系速度Z	N	（低字节在前）单位：m/s
+B	0	1	卫星数	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+x	0	1	保留	N	
+B	0	1	0xC0	N	
+B	0	1	0xFF	N	
+#	rulehead	<
+B	0	1	0xAA	N	
+B	0	1	0xBB	N	
+B	0	1	校验和	N	（3~61字节的和）
+H	1	1	周	N	（低字节在前）
+I	1	0.001	秒	N	（低字节在前），量纲：1e-3
+d	1	57.3	纬度	N	（8字节，低字节在前，单位：度）
+d	1	57.3	经度	N	（8字节，低字节在前，单位：度）
+d	1	1	高度	N	（8字节，低字节在前，单位：米）
+f	1	1	Gx2	N	（5ms的角度增量，单位为弧度）
+f	1	1	Gy2	N	（5ms的角度增量，单位为弧度）
+f	1	1	Gz2	N	（5ms的角度增量，单位为弧度）
+f	1	1	Ax2	N	（5ms的速度增量，m/s）
+f	1	1	Ay2	N	（5ms的速度增量，m/s）
+f	1	1	Az2	N	（5ms的速度增量，m/s）
+B	1	1	状态字	N	（0x01：初始对准；0x02：纯惯性；0x03：纯惯性
+H	0	1	保留	N	
+H	0	1	保留	N	
+B	0	1	0xC0	N	
+B	0	1	0xFF	N	

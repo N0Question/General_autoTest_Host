@@ -1,0 +1,16 @@
+#	是否保存	系数	标题	排序	字长
+#	send_ms	500			
+#	send	RT			
+#	rece	BC			
+#	addr	8					
+#	mode	1553
+#	head	0258			
+#	rulehead	>			
+H	1	1	字头	N	1
+H	1	1	帧计数	N	1
+i	1	1.46E09	纬度	N	2
+i	1	1.46E09	经度	N	2
+h	1	1	高度	N	1
+H	1	1	月和日	N	1
+H	1	1	年	N	1
+H	1	1	校验和	N	1

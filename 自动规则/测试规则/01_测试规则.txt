@@ -1,0 +1,33 @@
+#序号	名称	设置	注释
+#	一轮测试		
+#	一轮测试		
+#	一轮测试		
+0	temp	-10
+2   temp    on
+1	wait	7200	
+1	wait	7200	
+2	name	19wzBD_-10
+3	bd	1	
+#	一轮测试		
+0	temp	0
+1	wait	7200	
+2	name	19wzBD_0
+3	bd	1	
+#	一轮测试		
+0	temp	10	
+1	wait	7200	
+2	name	19wzBD_10
+3	bd	1	
+#	一轮测试		
+0	temp	20
+1	wait	7200	
+2	name	19wzBD_20
+3	bd	1	
+#	一轮测试		
+0	temp	30
+1	wait	7200	
+2	name	19wzBD_30
+3	bd	1	
+0	temp	25
+1   wait    3600
+2   temp    off

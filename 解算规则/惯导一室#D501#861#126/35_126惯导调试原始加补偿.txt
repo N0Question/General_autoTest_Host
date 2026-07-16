@@ -1,0 +1,34 @@
+#	是否保存	系数	标题	排序	注释
+#	baund	230400				
+#	check	odd	(none/odd/even			
+#	header	EB	90	
+#	latitude	39.73675	装订纬度			
+#	longitude	116.50984	装订经度			
+#	height	20	装订高度			
+#	alignment_time	100	装订时间			
+#	receive_hz	200	接收频率
+#	rulehead	<
+B	0	1	0xEB	N	
+B	0	1	0x90	N	
+B	0	1	0x23	N	
+B	0	1	0x01	N	
+f	1	1	Ax	4	
+f	1	1	Ay	5	
+f	1	1	Az	6	
+f	1	1	Gx	1	
+f	1	1	Gy	2	
+f	1	1	Gz	3	
+b	1	1	Ax温度	10	
+b	1	1	Ay温度	11	
+b	1	1	Az温度	12	
+b	1	1	Gx温度	7	
+b	1	1	Gy温度	8	
+b	1	1	Gz温度	9
+f	1	1	Ax2	N
+f	1	1	Ay2	N	
+f	1	1	Az2	N
+f	1	1	Gx2	N	
+f	1	1	Gy2	N	
+f	1	1	Gz2	N	
+B	1	1	帧计数	0	
+H	0	1	校验和	N	

@@ -1,0 +1,30 @@
+#ĞòºÅ	Ãû³Æ	ÉèÖÃ	×¢ÊÍ
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-40
+1	wait	10800	
+7	name	LW_-55	
+8	bd	04	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	25
+1	wait	10800	
+7	name	LW_25
+8	bd	04	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	60
+1	wait	10800	
+7	name	LW_60
+8	bd	04	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	-40
+1	wait	10800	
+7	name	LW_-55_2
+#	Ò»ÂÖ²âÊÔ		
+0	temp	25
+1	wait	10800	
+7	name	LW_25_2
+8	bd	04	
+#	Ò»ÂÖ²âÊÔ		
+0	temp	60
+1	wait	10800	
+7	name	LW_60_2
+8	bd	04	

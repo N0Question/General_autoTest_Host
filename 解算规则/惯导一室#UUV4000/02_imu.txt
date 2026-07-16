@@ -1,0 +1,30 @@
+#	是否保存	系数	标题	排序	注释
+#	check	none	(none/odd/even		
+#	header	55	AA		
+#	receive_hz	200			
+#	special_flag	JG	特殊标志位		
+#	rulehead	>			
+B	1	1	timestamp	N	
+B	1	1	timestamp_sample	N	
+B	1	1	longitude	N	
+B	1	1	latitude	N	
+H	1	1	device_id	N	
+h	1	1	attitude[0]	N	
+I	1	1	attitude[1]	N	
+f	1	1	attitude[2]	N	
+f	1	1	angular[0]	N	
+f	1	1	angular[1]	N	
+f	1	1	angular[2]	N	
+f	1	1	acc[0]	N	
+f	1	1	acc[1]	N	
+f	1	1	acc[2]	N	
+f	1	1	velocity[0]	N	
+f	1	1	velocity[1]	N	
+f	1	1	velocity[2]	N	
+f	1	1	depth	N	
+f	1	1	temperature	N	
+f	1	1	quarter[0]	N	
+f	1	1	quarter[1]	N	
+f	1	1	quarter[2]	N	
+f	1	1	quarter[3]	N	
+f	1	1	status_code	N	

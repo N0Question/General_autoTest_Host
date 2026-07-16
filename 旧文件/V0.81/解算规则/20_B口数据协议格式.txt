@@ -1,0 +1,37 @@
+#	是否保存	系数	标题	排序	注释
+#	check	none	(none/odd/even		
+#	header	EB	90	33	
+#	ender	C0	FF		
+#	latitude	39.73675			
+#	longitude	116.50984			
+#	height	20			
+#	alignment_time	200			
+#	receive_hz	1
+#	special_flag	JG	特殊标志位		
+#	rulehead	<		
+B	0	1	0xEB	N	
+B	0	1	0x90	N	
+B	0	1	0x33	N	
+B	1	1	定位模式	N	
+B	1	1	工作状态	N	
+I	1	1	加电时间	N	
+B	1	1	参与定位卫星数	N	
+H	1	1	年	N	
+B	1	1	月	N	
+B	1	1	日	N	
+B	1	1	时	N	
+B	1	1	分	N	
+B	1	1	秒	N	
+H	1	1	毫秒	N	
+i	1	1.00E-06	经度	N	
+i	1	1.00E-06	纬度	N	
+i	1	0.1	椭球高度	N	
+h	1	0.1	北向速度	N	
+h	1	0.1	天向速度	N	
+h	1	0.1	东向速度	N	
+H	1	0.01	PDOP	N	
+H	1	0.01	GDOP	N	
+i	1	0.1	海拔高度	N	
+I	1	1	捕获卫星数	N	
+B	1	1	延迟时间	N	
+B	0	1	帧校验和	N	

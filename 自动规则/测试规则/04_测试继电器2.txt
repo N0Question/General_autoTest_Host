@@ -1,0 +1,19 @@
+#序号	名称	设置	注释
+#	一轮测试		
+1	power    on:all		
+2    wait    5			
+3   power    off:all			
+#	一轮测试		
+4   power    on:1			
+6   power    on:2			
+8   power    on:3			
+10   power    on:4			
+12   power    on:5		
+14  power   on:6		
+#	一轮测试		
+4   power    off:1			
+6   power    off:2		
+8   power    off:3			
+10   power    off:4		
+12   power    off:5		
+14  power   off:6			

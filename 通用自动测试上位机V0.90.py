@@ -1,0 +1,4150 @@
+# pyqt相关模块
+from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer
+# from pyqtgraph.Qt import QtCore
+import pyqtgraph as pg 
+from pyqtgraph.Qt import QtGui,QtCore
+
+# 逻辑 事件 自定义等模块
+from Automated_testingV17 import Ui_MainWindow
+from funs.fun_checks import *
+from funs.fun_chy2 import *
+from funs.fun_serial import *
+from funs.fun_locals import *
+
+import ui.events
+import ui.inits
+import ui.tools
+
+from ui.event import MainWindowEvent
+from ui.logic import MainWindowLogic
+from ui.debug import MainWindowDebug
+from ui.times import MainWindowTimes
+from ui.get_ui import MainWindowGetUI
+from ui.init_ui import MainWindowInit
+from ui.threads import MainWindowThread
+from ui.settings import MainWindowSetting
+from ui.constants import MainWindowConstants
+
+# 其他正常模块
+# import datetime
+from datetime import timezone,datetime
+import pyqtgraph as pg
+import pandas as pd
+import numpy as np
+import serial
+import serial.tools.list_ports as sports
+import threading
+import binascii
+import struct
+import serial
+import time
+import os
+
+# 设置pandas显示 多列显示和输出对齐
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 1000)
+# pd.set_option('display.colheader_justify', 'left')
+pd.set_option('display.unicode.ambiguous_as_wide', True)
+pd.set_option('display.unicode.east_asian_width', True)
+
+
+update_log = '''
+V0.66   较为稳定版本，开始记录细节更新及待更新内容
+V0.67   载入功能实现 
+V0.68   惯导测试    加入经纬度转换、距离、速度，实时绘图及误差计算
+V0.69   转台控制	反应转台状况,状态字显示
+V0.71	转台控制	根据转台状态决定是否收数及刹车是否到位
+V0.72	惯导协议	加入"drop0datav [num]"，由num判断是否丢弃对应包中为0的数据
+V0.73	数据处理	解算数据时判断校验并根据配置决定是否保存
+V0.76   数据装订    提供60所装订协议，自动装订功能
+V0.77   数据装订    提供腾盾装订协议，自动装订功能
+V0.78   数据装订    更新腾盾装订协议，自动装订功能
+V0.81   数据装订    更新自动装订功能，增加自动装订/通用装订功能
+V0.82   数据处理    将新老版本转台到位的数据进行均值处理
+V0.83   数据处理    初步实现验证流程自动化
+V0.84   绘图更新    双Y轴绘图
+V0.86   解算规则    添加实时测试解算规则
+'''
+updating_log = '''
+转台控制    模块化控制 根据状态字决定是否下一步
+数据处理    加入数据处理自动出测试报告
+
+'''
+
+class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
+    def __init__(self, parent=None):
+        super(MainWindow, self).__init__(parent)
+        self.setupUi(self)
+        self.setWindowTitle("通用自动测试上位机_蔡_功能测试版_25089_V0.89")
+        # 初始化调试信息
+        self.inits_debugMsg = ui.inits.MainWindowInitDebugMsg(self)
+        self.inits_showMsg = ui.inits.MainWindowInitShowMsg(self)
+        # self.inits_funcTest = ui.inits.MainWindowInitFuncTest(self)
+        
+        # 调试模式函数
+        self.debug = MainWindowDebug(self)
+        # UI初始化函数
+        self.init_ui = MainWindowInit(self)
+        # 定时事件函数
+        self.times = MainWindowTimes(self)
+        # 全局变量及设定
+        self.settings = MainWindowSetting(self)
+        # 结构体初始函数
+        self.constants = MainWindowConstants(self)
+        # 事件处理函数
+        self.events = MainWindowEvent(self)
+        # 线程处理函数
+        self.threads = MainWindowThread(self)
+        # 逻辑事件逻辑
+        self.uilogic = MainWindowLogic(self)
+        # 获取UI函数
+        self.getui = MainWindowGetUI(self)
+        
+        
+        # 初始化多设备自动控制事件集
+        self.events_devide = ui.events.MainWindowEventDevide(self)
+        # 初始化显示模块 根据uuid判断 后续测试功能需加装测试时间
+        self.events_hidden = ui.events.MainWindowEventHidden(self)
+        # 初始化工具栏-处理标定数据
+        self.tools_bdcalib = ui.tools.MainWindowToolBdcalib(self)
+
+        # self.tableWidget_general_show.setColumnWidth(0, 10)
+        # 初始化界面元素
+        self.inside_location = 0.0
+        self.inside_speed = 0.0
+        self.outside_location = 0.0
+        self.outside_speed = 0.0
+        self.turntable_i_status = '{}'.format('N')    # 转台运动状态
+        self.turntable_o_status = '{}'.format('N')     # 转台运动状态
+        self.automatic_time = 0          # 自动测试时间  
+        self.plan_name = ''             # 自动标定进度名称
+        self.threading_begin_time = 0
+        self.default_alpha = 0.6
+        self.all_rec_hex = 0
+        self.sum_check_err_count = 0
+        self.show_message_length = 30   # 显示的最大行数
+        
+ 
+        self.list_mean_data = [self.lineEdit_inside_plot_mean1,self.lineEdit_inside_plot_mean2,self.lineEdit_inside_plot_mean3]
+        self.list_ffz_data = [self.lineEdit_inside_plot_ffz1,self.lineEdit_inside_plot_ffz2,self.lineEdit_inside_plot_ffz3]
+        self.list_std_data = [self.lineEdit_inside_plot_stds1,self.lineEdit_inside_plot_stds2,self.lineEdit_inside_plot_stds3]
+        
+        
+        self.graphicsView_INU_loc_adp = self.graphicsView_INU_loc.addPlot()
+        self.graphicsView_INU_loc_error_adp = self.graphicsView_INU_loc_error.addPlot()
+        self.graphicsView_INU_speed_adp = self.graphicsView_INU_speed.addPlot()
+        self.graphicsView_INU_loc_adp.showGrid(x=True,y=True,alpha=1.0)
+        self.graphicsView_INU_loc_adp.setAspectLocked(True)
+        self.graphicsView_INU_loc_error_adp.showGrid(x=True,y=True,alpha=self.default_alpha)
+        self.graphicsView_INU_speed_adp.showGrid(x=True,y=True,alpha=self.default_alpha)
+
+        self.scatter = pg.ScatterPlotItem()
+        self.graphicsView_INU_loc_adp.addItem(self.scatter)
+        self.scatter.setData([1,2,3],[5,6,7])
+        self.scatterEnd = pg.ScatterPlotItem(brush='r')
+        self.graphicsView_INU_loc_adp.addItem(self.scatterEnd)
+        self.scatterBegin = pg.ScatterPlotItem(brush='g')
+        self.graphicsView_INU_loc_adp.addItem(self.scatterBegin)
+        # self.scatterH.setData([1,2,3],[5,6,7])
+        self.gv_pen_loc_error = self.graphicsView_INU_loc_error_adp.plot(pen='y')
+        self.gv_pen_speed = self.graphicsView_INU_speed_adp.plot(pen='y')
+
+
+        # 初始化使用元素
+        self.short_time = '000000'
+        self.normal_time = '00:00:00'
+        self.long_time = '00000000_000000'
+        self.bd_test_flag = ''
+        self.default_longitude = 116.50271
+        self.default_latitude = 39.73155
+        self.default_g = 9.801538877
+        self.show_message_automatic_list = []
+        self.show_message_singletest = None
+        self.lineEdit_automatic_mode_list = []
+        self.show_message_dis1_list = []
+        self.show_message_dis2_list = []
+        self.show_message_list = []             # 12输出显示
+        self.show_message_12tab = [0,0,0]       # 12路总接收帧、丢帧、错帧
+        self.show_lineEdit_12tab = []        # 12路总接收帧、丢帧、错帧显示框
+        for i in range(12):
+            self.show_message_list.append([])
+        self.show_message_dataframe = []        # 12路绘图显示
+        for i in range(12):
+            self.show_message_dataframe.append(pd.DataFrame([]))
+        self.show_message_dataframe_cache = []        # 12路绘图显示
+        for i in range(12):
+            self.show_message_dataframe_cache.append([])
+        for i in range(3):
+            self.show_lineEdit_12tab.append( self.findChild(QtWidgets.QLineEdit,'lineEdit_alltab_msg_{}'.format(i+1)) )
+        self.tableWidget_table_show.setRowCount(40)
+        self.tableWidget_table_show.setColumnCount(10)
+        
+        
+        # 初始化多线程标志位
+        self.test_mode = None
+        self.threading_test_flag = False        # 12路测试总标志
+        self.threading_list_flag = []           # 12子线程测试标志位
+        for i in range(12):
+            self.threading_list_flag.append(False)
+        self.save_data_flag = False     # 保存数据标志位
+        self.save_aver_flag = False     # 标定结束一个位置，取均值
+        self.save_ztrd_flag = False     # 转台到位标志位
+        self.turntable_ready = False     # 标定可以开始标志位
+        self.plan_threading_flag = False# 自动测试标志位
+        self.turntable_will_turn = True # 转台转动标志位
+        
+        # 初始化定时线程相关标志位
+        self.auto_plot_always   = False # 始终更新绘图，用于实时解算
+        self.auto_plot_1time    = False # 仅更新一次绘图，用于打开文件查看时
+        self.show_message_clear = False # 清空显示
+
+        # 初始化INU绘图相关标志位
+        self.inu_plot_always = False
+        self.inu_plot_once = False
+        self.inu_plot_clear = False
+
+
+        # 初始化标定进度相关标志位
+        self.bd_count = 0               # 标定进度计数
+        self.bd_calib_flag = 0          # 标定转台转动标志位，用于惯导一室通用标定
+        self.serial_test_begin_flag = False     # 转台到位标志位
+        self.bd_plan_flag = False       # 标定结束标志位
+        
+        
+        # 初始化卫导接收标志位
+        # 卫导接收开关
+        self.flag_sate_receive = False
+        # 卫导线程开关
+        self.threading_flag_sate = False
+        # 卫导接收缓存区
+        self.list_sate_receive = []
+        # 卫导信息处理缓存
+        self.list_sate_ascii_msg = []
+        for i in range(8):
+            self.list_sate_ascii_msg.append([])
+        self.textBrowser_ascii_list = []
+        
+        # 卫导信息解算
+        self.default_sate_GGA = [0]*2
+        self.list_sate_GGA = self.default_sate_GGA
+        self.default_sate_KSXT = [0]*7
+        self.list_sate_KSXT = self.default_sate_KSXT
+        self.list_sate_last = ['']*8
+        self.default_sate_list = []
+        self.default_sate_data = []
+        
+        
+        
+        # debug调试状态
+        self.debug_flag = False
+        self.debug_read_rules = False
+        self.bebug_binding = False
+        self.debug_begin_test = False
+        self.debug_threading = False
+        self.debug_update_5s = False
+        self.debug_update_5s_file = False
+        self.debug_update_1s = False
+        if not hasattr(self, "root_mode"):
+            self.root_mode = False
+        self.debug_list_1 = []
+        self.debug_list_2 = []
+        self.debug_list_3 = []
+        self.debug_list_4 = []
+        self.lineEdit_debug_QlineEdit_list = []
+        self.lineEdit_debug_message_list = []
+        for i in range(8):
+            self.lineEdit_debug_QlineEdit_list.append(self.findChild(QtWidgets.QLineEdit, 'lineEdit_debug_{}'.format(i+1)))
+            self.lineEdit_debug_message_list.append([])
+        
+        
+        # 初始化解算规则列表-新
+        self.decode_rule_list = []    # 解算规则
+        self.decode_save_list = []    # 是否保存
+        self.decode_para_list = []    # 系数
+        self.decode_titl_list = []    # 标题
+        self.decode_cout_list = []    # 排序序号
+        self.decode_sort_list = []    # 排序后列表
+        self.decode_edia_list = []    # 大小端
+        self.sorted_titl_list = []    # 排序后保存标题
+        self.receive_hz = 200
+        self.receive_wait_time = 0.005
+        self.config_sum_check = None        # 累加校验和位置及其累加位置 格式： [校验和位置,累加起始:累加结束]
+        self.config_sum_check0 = None
+        self.config_sum_check1 = None
+        self.config_sum_check2 = None
+        self.config_sum_check3 = None
+        self.drop0data = []             # 惯导通用协议中，在秒值处理中丢弃对应数据中为0的数
+        # 解算规则配置
+        self.rules_lists_format = 'xcbB?hHiIlLqQfdspPtyY'   # 解算规则可用范围
+        # 初始化结算规则-方法类实现
+        self.decode_class = class_rule()
+        
+        
+        
+# ------------------------------------配置文件默认设置---------------------------------
+        # 配置文件路径
+        self.para_com_filename = './配置文件/para_com.txt'
+        self.para_config_filename = './配置文件/para_config.txt'
+        self.list_notpath = ['选择路径','',None,'none','None']
+        self.model_list = [
+            ['通讯','转台','电源','温箱','装订','自动','三轴'],
+            ['protocal','turntable','power','tempbox','general','automatic', 'turntable3x'],
+            ['解算规则','标定规则','none','none','装订规则','自动规则','三轴规则'],
+        ]
+        self.config_hold_time = 15          # 转台稳定后等待时间
+        self.config_save_alldata_ms = 0     # 是否保存所哟毫秒值 
+        self.config_save_alldata_s = 0      # 是否保存所有秒值 
+        self.config_save_alldata_calib = 0	# 是否保存calib毫秒值 
+        self.config_save_readydata_ms = 0	# 是否保存到位毫秒值 
+        self.config_save_readydata_s = 0	# 是否保存到位秒值 
+        self.config_save_BD_average = 1     # 是否将标定过程各点取均值存放
+        self.config_save_alldata_bin = 1    # 是否保存标定过程中16进制原始数
+        self.config_save_BD_1file = 1       # 将标定过程各点存储到一个文件/多个文件
+        self.config_save_ascii_log = 0      # 保存装订的ascii内容
+        self.config_save_hex_log = 0        # 保存装订的hex内容
+        self.save_decimal_point = 6         # 保存时保留小数点后几位
+        self.save_test_title = 1            # 创建文件时将协议中的标题内容一并保存
+        self.config_power_model = 1         # 电源型号：1程控电源，2继电器
+        # self.config_special_flag = None     # 特殊标志位
+                    # --------------数据解算配置项#202311#--------------	
+        self.config_decode_header_type = 1  # 0:使用帧头模式/1:使用2帧头中间模式/2:使用帧头帧尾模式
+        self.config_default_sumhceck_used = 0   # 1:使用校验 0:不使用校验
+        self.config_default_sumcheck_flag = 0   # 1:是否根据校验保存数据：0:全部保存/1:校验通过保存
+        self.config_default_sumcheck_save = 0   # 是否追加保存校验结果到文件末尾
+        
+        
+        self.config_turntable_check_status = 0      # 1:根据转台状态反馈来决定是否到位/0:转动命令发送后固定等待hold_time
+        self.config_table_row = 40
+        self.config_table_col = 10
+        self.config_table_round = 6
+        self.config_in_spd = 36
+        self.config_in_acc = 36
+        self.config_out_spd = 24
+        self.config_out_acc = 24
+        self.default_plot_enable = 1
+        self.default_plot_limit = 100000
+        self.default_plot_flag = True       # 允许检测文件长度判断是否切换刷新时间
+        self.default_plot_time = 1500
+        self.default_plot_load = 1200
+        self.default_sumcheck_flag = 0      # 是否根据校验位保存数据
+        self.default_loc_decimal = 9        # 在表格显示时检测经纬度并使用指定精度
+        self.default_plot_decimal = 6       # 绘图栏显示信息时使用精度
+        self.save_turntable_status = 0      # 保存转台运动状态
+        # --------------通用装订配置项--------------
+        self.default_bindWidth_0 = 100  
+        self.default_bindWidth_1 = 100
+        self.default_bindWidth_2 = 100
+        # -------------卫导接收配置项--------------
+        self.default_append_sate = 1
+        self.default_save_sate = 1
+        self.default_clear_msg = 1
+        self.default_sate_length = 20
+
+        
+        
+        # 总控-刷新comboBox串口
+        self.comboBox_update_com_flag = True
+        self.comboBox_update_rules_flag = True
+        self.comboBox_update_para_flag = True
+
+
+# --------------------------------全部设置区com口列表---------------------------------------
+        self.comboBox_com_list = [
+            self.comboBox_protocal_com, 
+            self.comboBox_turntable_com, 
+            self.comboBox_power_com,
+            self.comboBox_tempbox_com,
+            self.combox_set_com_all,
+            self.comboBox_ascii_com,
+            self.comboBox_turntable3x_com]
+        # 12路com口
+        self.combox_com_list = [
+            self.combox_set_com_1,
+            self.combox_set_com_2,
+            self.combox_set_com_3,
+            self.combox_set_com_4,
+            self.combox_set_com_5,
+            self.combox_set_com_6,
+            self.combox_set_com_7,
+            self.combox_set_com_8,
+            self.combox_set_com_9,
+            self.combox_set_com_10,
+            self.combox_set_com_11,
+            self.combox_set_com_12,
+            self.combox_set_com_13,
+            self.combox_set_com_14]
+        for combox in self.comboBox_com_list+self.combox_com_list:
+            combox.view().setMinimumWidth(85)
+        
+        # 12路开关按键
+        self.combox_com_open_list = [
+            self.pushButton_com_open_1,
+            self.pushButton_com_open_2,
+            self.pushButton_com_open_3,
+            self.pushButton_com_open_4,
+            self.pushButton_com_open_5,
+            self.pushButton_com_open_6,
+            self.pushButton_com_open_7,
+            self.pushButton_com_open_8,
+            self.pushButton_com_open_9,
+            self.pushButton_com_open_10,
+            self.pushButton_com_open_11,
+            self.pushButton_com_open_12,
+            self.pushButton_com_open_13,
+            self.pushButton_com_open_14]
+        # 十二路开关设置
+        # for i in range(12):
+        #     self.combox_com_open_list[i].clicked.connect(self.change_button)
+            
+        # textBrowser_list
+        self.textBrowser_list = []
+        for i in range(12):
+            self.textBrowser_list.append( self.findChild(QtWidgets.QTextBrowser,'textBrowser_%s'%(i+1)) )
+        
+        # 多路选择combobox 
+        combobox_lists = [
+            self.comboBox_plot_choiceTab,
+            self.comboBox_INU_choiceTab_stand,
+            self.comboBox_INU_choiceTab_target
+        ]
+        for item in combobox_lists:
+            item.clear()
+            for i in range(12):
+                item.addItem('{} {}'.format(i+1,'路'))
+            item.setCurrentIndex(0)
+            # item.view().setMinimumWidth(150)
+            
+        # 装订自动更新
+        self.comboBox_binding_list = [self.lineEdit_binding_latitude,
+                                      self.lineEdit_binding_longitude,
+                                      self.lineEdit_binding_height,
+                                      self.lineEdit_binding_time]
+        for binding in self.comboBox_binding_list:
+            binding.textChanged.connect(self.binding_change)
+        self.powerControl_mainlist = [
+            'FE 0F 00 00 00 10 02 FF FF A6 64',
+            'FE 0F 00 00 00 10 02 00 00 A7 D4'
+        ]
+        self.powerControl_openlist = [
+            'FE 0F 00 00 00 10 02 FF FF A6 64',
+            'FE 0F 00 00 00 10 02 FF FF A6 64',
+            'FE 0F 00 00 00 01 01 01 A0 53',
+            'FE 0F 00 01 00 01 01 01 9D 93',
+            'FE 0F 00 02 00 01 01 01 D9 93',
+            'FE 0F 00 03 00 01 01 01 E4 53',
+            'FE 0F 00 04 00 01 01 01 51 93',
+            'FE 0F 00 05 00 01 01 01 6C 53',
+            'FE 0F 00 06 00 01 01 01 28 53',
+            'FE 0F 00 07 00 01 01 01 15 93',
+            'FE 0F 00 08 00 01 01 01 41 92',
+            'FE 0F 00 09 00 01 01 01 7C 52',
+            'FE 0F 00 0A 00 01 01 01 38 52',
+            'FE 0F 00 0B 00 01 01 01 05 92'
+        ]
+        self.powerControl_closelist = [
+            'FE 0F 00 00 00 10 02 00 00 A7 D4',
+            'FE 0F 00 00 00 10 02 00 00 A7 D4',
+            'FE 0F 00 00 00 01 01 00 61 93',
+            'FE 0F 00 01 00 01 01 00 5C 53',
+            'FE 0F 00 02 00 01 01 00 18 53',
+            'FE 0F 00 03 00 01 01 00 25 93',
+            'FE 0F 00 04 00 01 01 00 90 53',
+            'FE 0F 00 05 00 01 01 00 AD 93',
+            'FE 0F 00 06 00 01 01 00 E9 93',
+            'FE 0F 00 07 00 01 01 00 D4 53',
+            'FE 0F 00 08 00 01 01 00 80 52',
+            'FE 0F 00 09 00 01 01 00 BD 92',
+            'FE 0F 00 0A 00 01 01 00 F9 92',
+            'FE 0F 00 0B 00 01 01 00 C4 52'
+        ]
+            
+            
+        
+        
+# -------------------------------装订事件集合-----------------------------------
+        # 12路装订缓存区
+        self.binding_cache_list = []
+        for i in range(12):
+            self.binding_cache_list.append('')
+        # 12路装订缓存区_定时发送
+        self.list_binding_cache_waitTime = 0
+        self.list_binding_cache = []
+        for i in range(12):
+            self.list_binding_cache.append([])
+        
+        self.ascii_cache_list = []
+        for i in range(12):
+            self.ascii_cache_list.append('')
+        # 默认装订选择设置
+        self.comboBox_binding_com.clear()
+        self.comboBox_binding_com.addItem('all')
+        for i in range(12):
+            self.comboBox_binding_com.addItem('{} tab'.format(i+1))
+        self.comboBox_binding_com.setCurrentIndex(1)
+        
+        # 60所装订选择设置
+        self.comboBox_binding_com_60s.clear()
+        self.comboBox_binding_com_60s.addItem('all')
+        for i in range(12):
+            self.comboBox_binding_com_60s.addItem('{} tab'.format(i+1))
+        self.comboBox_binding_com_60s.setCurrentIndex(1)
+        # 激光惯导#60所 自动装订构造
+        self.binding_list_60s = []
+        for i in range(10):
+            self.binding_list_60s.append( self.findChild(QtWidgets.QLineEdit,'lineEdit_binding_60s_%s'%(i+1)) )
+        for binding in self.binding_list_60s:
+            binding.textChanged.connect(self.event_update_bingding_60s)
+            
+        # 卫导板卡仿真 自动装订构造
+        self.sate_com_list = []
+        for i in range(3):
+            self.sate_com_list.append(self.findChild(QtWidgets.QComboBox,'comboBox_sate_com_%s'%(i+1)) )
+        for sate_com in self.sate_com_list:
+            sate_com.clear()
+            sate_com.addItem('all')
+            for i in range(12):
+                sate_com.addItem('{} tab'.format(i+1))
+            sate_com.setCurrentIndex(2)
+        # 卫导板卡 点击事件构建
+        self.pushButton_sate_send_1.clicked.connect(self.event_send_sate1)
+        self.pushButton_sate_send_2.clicked.connect(self.event_send_sate2)
+        self.pushButton_sate_send_3.clicked.connect(self.event_send_sate3)
+        # 卫导板卡 更新内容构建
+        self.sate_send1_line_list = []  
+        self.sate_send2_line_list = []
+        self.sate_send3_line_list = []
+        self.sate_send1_autotime = 200
+        self.sate_send2_autotime = 1000
+        self.sate_send3_autotime = 1000
+        for i in range(10):
+            self.sate_send1_line_list.append( self.findChild(QtWidgets.QLineEdit,'lineEdit_sate_1_%s'%(i+1)) )
+        for i in range(9):
+            self.sate_send2_line_list.append( self.findChild(QtWidgets.QLineEdit,'lineEdit_sate_2_%s'%(i+1)) )
+        for i in range(26):
+            self.sate_send3_line_list.append( self.findChild(QtWidgets.QLineEdit,'lineEdit_sate_3_%s'%(i+1)) )
+        self.lineEdit_sate_1_0.textChanged.connect(self.sate_send1_change_time)
+        self.lineEdit_sate_2_0.textChanged.connect(self.sate_send2_change_time)
+        self.lineEdit_sate_3_0.textChanged.connect(self.sate_send3_change_time)
+        for sate_line in self.sate_send1_line_list:
+            sate_line.textChanged.connect(self.event_update_sate1)
+        for sate_line in self.sate_send2_line_list:
+            sate_line.textChanged.connect(self.event_update_sate2)
+        for sate_line in self.sate_send3_line_list:
+            sate_line.textChanged.connect(self.event_update_sate3)
+        self.event_update_sate1()
+        self.event_update_sate2()
+        self.event_update_sate3()
+        
+        # 滕盾惯导 下拉框更新
+        self.td_send_autotime = 1000
+        self.fz_send_autotime = 1000
+        self.gnss_send_autotime = 1000
+        # 命令字更新    
+        self.td_command_update_list = []
+        for i in range(6):
+            self.td_command_update_list.append( self.findChild(QtWidgets.QComboBox,'comboBox_binding_td_%s'%(i+1)) )
+        for td_command in self.td_command_update_list:
+            td_command.currentTextChanged.connect(self.td_command_change)
+        # GNSS更新
+        self.td_gnss_updae_list = []
+        for i in range(5):
+            self.td_gnss_updae_list.append( self.findChild(QtWidgets.QComboBox,'comboBox_binding_td_%s'%(i+7)) )
+        for td_gnss in self.td_gnss_updae_list:
+            td_gnss.currentTextChanged.connect(self.td_gnss_change)
+        # 大气数据有效字 软件升级指令 升级软件配置 更新
+        self.comboBox_binding_td_12.currentTextChanged.connect(self.td_atmos_change)
+        self.comboBox_binding_td_13.currentTextChanged.connect(self.td_softUpdate_change)
+        self.comboBox_binding_td_14.currentTextChanged.connect(self.td_softPara_change)
+        # 滕盾惯导 内容更新
+        self.td_command_list = []
+        for i in range(1,30):
+            self.td_command_list.append( self.findChild(QtWidgets.QLineEdit,'lineEdit_binding_td_%s'%(i+1)) )
+        for td_command in self.td_command_list:
+            td_command.textChanged.connect(self.td_command_send_update)
+        self.lineEdit_binding_td_1.textChanged.connect(self.td_command_time_change)
+        self.pushButton_binding_td.clicked.connect(self.event_td_send1)
+
+        # 地面仿真 内容更新
+        self.fz_command_list = []
+        for i in range(1,10):
+            self.fz_command_list.append( self.findChild(QtWidgets.QLineEdit,'lineEdit_binding_fz_%s'%(i+1)) )
+        for fz_command in self.fz_command_list:
+            fz_command.textChanged.connect(self.fz_command_send_update)
+        self.lineEdit_binding_fz_1.textChanged.connect(self.fz_command_time_change)
+        self.pushButton_binding_fz.clicked.connect(self.event_fz_send1)
+
+        # GNSS仿真 内容更新
+        self.gnss_command_list = []
+        for i in range(1,33):
+            self.gnss_command_list.append( self.findChild(QtWidgets.QLineEdit,'lineEdit_binding_gnss_%s'%(i+1)) )
+        for gnss_command in self.gnss_command_list:
+            gnss_command.textChanged.connect(self.gnss_command_send_update)
+        self.lineEdit_binding_gnss_1.textChanged.connect(self.gnss_command_time_change)
+        self.pushButton_binding_gnss.clicked.connect(self.event_gnss_send1)
+        # GNSS仿真 命令字更新
+        self.gnss_status_updae_list = []
+        for i in range(5):
+            self.gnss_status_updae_list.append( self.findChild(QtWidgets.QComboBox,'comboBox_binding_gnss_%s'%(i+1)) )
+        for gnss_status in self.gnss_status_updae_list:
+            gnss_status.currentTextChanged.connect(self.gnss_status_change)
+        
+
+
+
+        
+
+        
+
+
+
+# ---------------------------------选择事件集----------------------------
+        # 总控开关切换
+        # self.pushButton_com_open_all.clicked.connect(self.change_button_all)
+        # 单路通讯协议同步多路更新
+        self.comboBox_protocal_com.currentTextChanged.connect(self.protocal_com_change)
+        self.comboBox_protocal_baund.currentTextChanged.connect(self.protocal_com_change)
+        self.comboBox_protocal_check.currentTextChanged.connect(self.protocal_com_change)
+        self.combox_set_com_1.currentTextChanged.connect(self.comboBox_com_change)
+        self.combox_set_baund_1.currentTextChanged.connect(self.comboBox_com_change)
+        self.comboBox_set_check_1.currentTextChanged.connect(self.comboBox_com_change)
+        # 绘图逻辑更新-绘制轴向及标题更新 20241012
+        self.comboBox_plot_beginAxis.currentTextChanged.connect(self.update_plot_axis)
+        self.comboBox_plot_doubleAxis.currentTextChanged.connect(self.update_double_axis)
+        self.comboBox_INU_beginAxis_stand.currentTextChanged.connect(self.update_stand_axis)
+        self.comboBox_INU_beginAxis_loc.currentTextChanged.connect(self.update_target_loc)
+        self.comboBox_INU_beginAxis_spd.currentTextChanged.connect(self.update_target_spd)
+        # 多路文件名同步更新
+        self.lineEdit_file_names_all.textChanged.connect(self.filenames_change)
+        # 规则更新同步
+        self.comboBox_protocal_rule.currentTextChanged.connect(self.read_rules)
+        
+
+
+
+
+# ----------------------------点击事件集------------------------------
+        self.pushButton_begin_test.clicked.connect(self.begin_test)
+        self.pushButton_stop_test.clicked.connect(self.stop_test)
+        # 发送装订
+        self.pushButton_binding_send.clicked.connect(self.binding_send)
+        # 载入文件
+        self.pushButton_load_data.clicked.connect(self.event_load_file)
+        # 自动获取经纬度
+        self.pushButton_autoset_INU.clicked.connect(self.event_autoset_inu)
+        # 重新载入para_config文件
+        self.pushButton_debug_1.clicked.connect(self.event_reload_config)
+        # 激光惯导#60所祥光装订
+        # self.pushButton_update_binding_60s.clicked.connect(self.event_update_bingding_60s)
+        self.pushButton_binding_send_60s.clicked.connect(self.event_send_bingding_60s)
+        # 开关电源
+        self.pushButton_power_open.clicked.connect(self.event_power_on)
+        self.pushButton_power_close.clicked.connect(self.event_power_off)
+        # 卫导切换
+        self.pushButton_com_open_13.clicked.connect(self.change_sate_button)
+        
+        self.lineEdit_inside_plot_axis_list = []
+        self.lineEdit_inside_doubleplot_axis_list = []
+        self.lineEdit_inside_plot_para_list = []
+        self.init_all_coef()
+
+
+
+
+
+        
+# -----------------------------------事件更新计数---------------------------------------
+        self.show_timer_count0 = 0
+        self.show_timer_count1 = 0
+        self.show_timer_count2 = 0
+        self.show_timer_count3 = 0
+        # 打开软件自动更新一次所有状态
+        self.show_message_01s()
+        self.show_message_05s() 
+        self.show_message_1s()
+        self.show_message_5s()
+        
+        # 读取默认配置文件
+        self.read_default_para_com()
+        self.read_default_para_config()
+        
+        # 事件0.1s更新
+        self.show_timer0 = QTimer(self)
+        self.show_timer0.timeout.connect(self.show_message_01s)
+        self.show_timer0.start(200)
+        # 事件0.5s更新
+        self.show_timer1 = QTimer(self)
+        self.show_timer1.timeout.connect(self.show_message_05s)
+        self.show_timer1.start(500)
+        # 事件1s更新
+        self.show_timer2 = QTimer(self)
+        self.show_timer2.timeout.connect(self.show_message_1s)
+        self.show_timer2.start(1000)
+        # 事件5s更新
+        self.show_timer3 = QTimer(self)
+        self.show_timer3.timeout.connect(self.show_message_5s)
+        self.show_timer3.start(1000)
+        # 事件2s更新
+        self.show_timer4 = QTimer(self)
+        self.show_timer4.timeout.connect(self.show_message_2s)
+        self.show_timer4.start(2000)
+
+        # 卫导定时发送
+        self.sate_time1 = QTimer(self)
+        self.sate_time1.timeout.connect(self.event_send_sate1)
+        self.sate_time1.start(self.sate_send1_autotime)
+        # 事件2s更新
+        self.sate_time2 = QTimer(self)
+        self.sate_time2.timeout.connect(self.event_send_sate2)
+        self.sate_time2.start(self.sate_send2_autotime)
+        
+        # 滕盾惯导 定时发送
+        self.td_time1 = QTimer(self)
+        self.td_time1.timeout.connect(self.event_td_send1)
+        self.td_time1.start(self.td_send_autotime)
+        self.fz_time1 = QTimer(self)
+        self.fz_time1.timeout.connect(self.event_fz_send1)
+        self.fz_time1.start(self.fz_send_autotime)
+        self.gnss_time1 = QTimer(self)
+        self.gnss_time1.timeout.connect(self.event_gnss_send1)
+        self.gnss_time1.start(self.gnss_send_autotime)
+
+        # 装订逻辑更新后 更新经纬度等相关信息，用于自动装订
+        self.init_all_coef_end()
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def init_all_coef_end(self):
+        self.lineEdit_INU_plot_stand_lon.setText(str(self.default_longitude))
+        self.lineEdit_INU_plot_stand_lat.setText(str(self.default_latitude))
+        self.lineEdit_binding_60s_2.setText(str(self.default_longitude))
+        self.lineEdit_binding_60s_3.setText(str(self.default_latitude))
+        self.lineEdit_sate_1_3.setText(str(self.default_longitude))
+        self.lineEdit_sate_1_2.setText(str(self.default_latitude))
+        self.lineEdit_binding_td_10.setText(str(self.default_longitude))
+        self.lineEdit_binding_td_11.setText(str(self.default_latitude))
+        self.lineEdit_binding_gnss_8.setText(str(self.default_longitude))
+        self.lineEdit_binding_gnss_9.setText(str(self.default_latitude))
+        self.tableWidget_table_show.setRowCount(self.config_table_row)
+        self.tableWidget_table_show.setColumnCount(self.config_table_col*2)
+        # --------------通用装订配置项--------------    20250102
+        self.tableWidget_general_show.setColumnWidth(0, self.default_bindWidth_0)
+        self.tableWidget_general_show.setColumnWidth(1, self.default_bindWidth_1)
+        self.tableWidget_general_show.setColumnWidth(2, self.default_bindWidth_2)
+        self.tableWidget_decode_show.setColumnWidth(0, self.default_bindWidth_0)
+        self.change_sate_button()
+
+    def init_all_coef(self):
+        self.lineEdit_inside_plot_axis_list = []
+        self.lineEdit_inside_plot_para_list = []
+        self.lineEdit_inside_doubleplot_axis_list = []
+        for i in range(3):
+            self.lineEdit_inside_plot_axis_list.append(
+                self.findChild(QtWidgets.QLineEdit, 'lineEdit_inside_plot_axis{}'.format(i+1))
+            )
+            self.lineEdit_inside_plot_para_list.append(
+                self.findChild(QtWidgets.QLineEdit, 'lineEdit_inside_plot_para{}'.format(i+1))
+            )
+            self.lineEdit_inside_doubleplot_axis_list.append(
+                self.findChild(QtWidgets.QLineEdit, 'lineEdit_inside_plot_doubleAxis{}'.format(i+1))
+            )
+
+        # -------------卫导接收配置项-------------- 20250208
+        self.list_sate_receive = []
+        for i in range(self.default_sate_length):
+            self.list_sate_receive.append(0)
+        for i in range(8):
+            self.textBrowser_ascii_list.append(
+                self.findChild(QtWidgets.QTextBrowser, 'textBrowser_ascii_{}'.format(i))
+            )
+            
+    
+    # 事件更新0.1s线程，用于更新数据输出和绘图
+    def show_message_01s(self):
+        if self.show_message_clear:
+            for i in range(12):
+                # textBrowsers = self.findChild(QtWidgets.QTextBrowser,'textBrowser_%s'%(i+1))
+                self.textBrowser_list[i].clear()
+            self.show_message_clear = False
+        if len(self.show_message_dis1_list)>0:
+            self.textBrowser_progress_display1.append(self.show_message_dis1_list.pop(0))
+            self.textBrowser_progress_display1.verticalScrollBar().setValue(self.textBrowser_progress_display1.verticalScrollBar().maximum())
+
+        if len(self.show_message_dis2_list)>0:
+            self.textBrowser_progress_display2.append(self.show_message_dis2_list.pop(0))
+            self.textBrowser_progress_display2.verticalScrollBar().setValue(self.textBrowser_progress_display2.verticalScrollBar().maximum())
+        
+        if len(self.show_message_automatic_list)>0:
+            self.textBrowser_automatic_ruleline.append(self.show_message_automatic_list.pop(0))
+            self.textBrowser_automatic_ruleline.verticalScrollBar().setValue(self.textBrowser_automatic_ruleline.verticalScrollBar().maximum())
+        
+        for i in range(12):
+            while len(self.show_message_list[i])>0:
+                self.textBrowser_list[i].append( self.show_message_list[i].pop(0) )
+
+        if len(self.showMsgList_devide)>0:
+            self.textBrowser_automatic_ruleline.append('{} {}'.format(self.normal_time, self.showMsgList_devide.pop(0)))
+
+                
+
+            
+            
+    # 事件更新0.5s线程，用于更新数据输出和绘图
+    def show_message_05s(self):
+        while len(self.lineEdit_automatic_mode_list)>0:
+            automatic_show_text = str(self.lineEdit_automatic_mode_list.pop(0))
+            self.lineEdit_automatic_mode.setText(automatic_show_text)
+            self.lineEdit_automatic_mode_2.setText(automatic_show_text)
+        self.show_timer_count1 += 1
+        begin_time = time.time()
+        for thread_num in range(12):
+            while len(self.show_message_dataframe_cache[thread_num])>0:
+                add_item = self.show_message_dataframe_cache[thread_num].pop(0)
+                self.show_message_dataframe[thread_num] = pd.concat([self.show_message_dataframe[thread_num],pd.DataFrame(add_item).T],axis=0)
+        for i in range(8):
+            while len(self.list_sate_ascii_msg[i])>0:
+                # self.textBrowser_ascii_list[i].append(self.list_sate_ascii_msg[i].pop(0))
+                msg = self.list_sate_ascii_msg[i].pop(0)
+                self.init_ui.textBrowser_ascii_list[i].append(msg)
+        if self.threading_test_flag:
+            for i in range(3):
+                self.show_lineEdit_12tab[i].setText(str(self.show_message_12tab[i]))
+
+
+    # 事件更新1s线程，用于按秒更新界面元素
+    def show_message_1s(self):
+        begin_time_1s = time.time()
+        self.show_timer_count2 += 1
+        try:
+            self.lcdNumber_inside_location.display('{:.2f}'.format(self.inside_location))
+            self.lcdNumber_inside_speed.display('{:.2f}'.format(self.inside_speed))
+            self.lcdNumber_outside_location.display('{:.2f}'.format(self.outside_location))
+            self.lcdNumber_outside_speed.display('{:.2f}'.format(self.outside_speed))
+            self.lineEdit_turntable_i_status.setText(self.turntable_i_status)
+            self.lineEdit_turntable_o_status.setText(self.turntable_o_status)
+            self.lcdNumber_automatic_time.display(int(self.automatic_time))
+            self.lcdNumber_automatic_time_2.display(int(self.automatic_time))
+            # self.radioButton_power_flag.setChecked(self.power_flag)
+        except Exception as e:
+            self.debug_list_3.append('{} UI内容设置错误:{} {}'.format(self.normal_time,'0.5s',e))
+        # 转换时分秒
+        self.test_time = datetime.now().strftime('%H%M%S')
+        self.normal_time = datetime.now().strftime('%H:%M:%S')
+        self.long_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # point_lcd_time = time.time()
+
+        # 绘图 # 若有绘图更新标志auto_plot_always
+        if (self.auto_plot_always | self.auto_plot_1time) & self.default_plot_enable:
+            # print('self.auto_plot_always{}  {}'.format(self.auto_plot_always,self.auto_plot_1time))
+            self.auto_plot_1time = False
+            try:
+                plot_data_tab = int(self.comboBox_plot_choiceTab.currentText().split()[0])-1
+            except:
+                plot_data_tab = 0
+            # 更新绘图相关设置
+            # 获取绘图参数
+            list_axis = []
+            list_axis2 = []
+            list_title = []
+            list_title2 = []
+            list_para = []
+            for i in range(3):
+                plot_axis_text = self.lineEdit_inside_plot_axis_list[i].text()
+                try:plot_axis = int(plot_axis_text.split()[0])
+                except:plot_axis = 1
+                try:plot_title = str(plot_axis_text.split()[1])
+                except:plot_title = 'None'
+                plot_para_text = self.lineEdit_inside_plot_para_list[i].text()
+                try:plot_para = float(plot_para_text)
+                except:
+                    plot_para = 1
+                list_axis.append(plot_axis)
+                list_title.append(plot_title)
+                list_para.append(plot_para)
+                
+                # 添加双Y轴
+                try:plot_axis = int(plot_axis_text.split()[2])
+                except:plot_axis = None
+                # 添加双Y轴策略2
+                plot_axis_text = self.lineEdit_inside_doubleplot_axis_list[i].text()
+                try:plot_axis = int(plot_axis_text.split()[0])
+                except:plot_axis = plot_axis
+                try:plot_title = str(plot_axis_text.split()[1])
+                except:plot_title = 'None'
+                list_title2.append(plot_title)
+                list_axis2.append(plot_axis)
+
+            try:plot_tab = int(self.comboBox_plot_choiceTab.currentText().split()[0])
+            except:plot_tab = 1
+            skip_count = try_get_text(self.lineEdit_plot_skipcount,int,1)
+            end_count = try_get_text(self.lineEdit_plot_endcoun,int,0)
+            rolls = try_get_text(self.lineEdit_plot_rolling,int,1)
+            roll_string = self.lineEdit_plot_rolling.text()
+            try:rolls = int(roll_string.split()[0])
+            except:rolls = 1
+            try:rsteps = int(roll_string.split()[1])
+            except:rsteps = 1
+            plot_dataframe = self.show_message_dataframe[plot_tab-1]
+            if self.default_plot_flag:
+                if len(plot_dataframe)>self.default_plot_limit:
+                    self.show_timer2.start(self.default_plot_time)
+                    self.default_plot_flag = False
+            
+            for i in range(3):
+                if len(plot_dataframe)==0:
+                    continue
+                try:
+                    if end_count==0:
+                        plot_data = list_para[i]*plot_dataframe.iloc[skip_count:,list_axis[i]].reset_index(drop=True).rolling(rolls,step=rsteps).mean()
+                    else:    
+                        plot_data = list_para[i]*plot_dataframe.iloc[skip_count:-end_count,list_axis[i]].reset_index(drop=True).rolling(rolls,step=rsteps).mean()
+                    self.list_gv_pen[i].setData(plot_data)
+                    try:
+                        if ('None' in list_title2[i])|(len(list_title2[i])==0):
+                            show_title = list_title[i]
+                        else:
+                            show_title = '{} + {}'.format(list_title[i],list_title2[i])
+                        self.list_gv_adp[i].setTitle(show_title)
+                    except Exception as e:
+                        self.debug_list_1.append('{}设置绘图标题错误:{}'.format(self .normal_time,e))
+                    mean_data = plot_data.mean()
+                    self.list_mean_data[i].setText('{:.{}f}'.format(mean_data,self.default_plot_decimal))
+                    ffz_data = plot_data.max()-plot_data.min()
+                    self.list_ffz_data[i].setText('{:.{}f}'.format(ffz_data,self.default_plot_decimal))
+                    stds_data = float(plot_data.std())
+                    self.list_std_data[i].setText('{:.{}f}'.format(stds_data,self.default_plot_decimal))
+                    # 绘制双Y轴
+                    try:
+                        if list_axis2[i]:
+                            if end_count==0:
+                                plot_data = list_para[i]*plot_dataframe.iloc[skip_count:,list_axis2[i]].reset_index(drop=True).rolling(rolls).mean()
+                            else:    
+                                plot_data = list_para[i]*plot_dataframe.iloc[skip_count:-end_count,list_axis2[i]].reset_index(drop=True).rolling(rolls).mean()
+                            self.list_gv_pen2[i].setData(plot_data)
+                        else:
+                            self.list_gv_pen2[i].setData([])
+                    except:
+                        pass
+
+                except Exception as e:
+                    print('绘图报错{}:{}'.format(i,e))
+                    # messagess = '暂无数据'
+
+            # 表格绘图
+            try:
+                table_count = 0 
+                if len(plot_dataframe)!=0:
+                    for i in plot_dataframe.iloc[-1,:]:
+                        row = table_count//self.config_table_col
+                        col = table_count%self.config_table_col*2+1
+                        try: title = self.sorted_titl_list[table_count]
+                        except: title = 'None'
+                        try:
+                            if ('字节' in title) & (float(i).is_integer()):
+                                item = bin(int(i)).upper()
+                            elif ('字' in title) & (float(i).is_integer()):
+                                item = hex(int(i)).upper()
+                            elif ('经度'in title)|('纬度' in title):
+                                item = '{:.{}f}'.format(i,self.default_loc_decimal)
+                            else:
+                                item = '{:.{}f}'.format(i,self.config_table_round)
+                            # print('{} {} title\t{} {} integer\t item:{}'.format( title,('字' in title),i,float(i).is_integer(),item ))
+                        except :
+                            # item = str(round(i,self.config_table_round))
+                            item = str(i)
+                        try:
+                            self.tableWidget_table_show.setItem(row,col,QtWidgets.QTableWidgetItem(item))
+                        except Exception as e:
+                            self.debug_list_3.append('{} table填充内容失败:{} {} {}'.format(self.normal_time,row,col,item))
+                        table_count+=1
+
+            except Exception as e:
+                self.debug_list_3.append('{} table填充内容失败:{}'.format(self.normal_time,e))
+
+            
+
+
+        # 调试信息输出
+        while len(self.debug_list_1)>0:
+            self.textBrowser_debug_1.append(self.debug_list_1.pop(0))
+        while len(self.debug_list_2)>0:
+            self.textBrowser_debug_2.append(self.debug_list_2.pop(0))
+        while len(self.debug_list_3)>0:
+            self.textBrowser_debug_3.append(self.debug_list_3.pop(0))
+        while len(self.debug_list_4)>0:
+            self.textBrowser_debug_4.append(self.debug_list_4.pop(0))
+        while len(self.debugMsgList_devide)>0:
+            self.textBrowser_debug_5.append(self.debugMsgList_devide.pop(0))
+        self.lineEdit_debug_message_list[2].append('总接收数:{}'.format(self.all_rec_hex))
+        self.lineEdit_debug_message_list[3].append('校验失败:{}'.format(self.sum_check_err_count))
+
+        for i in range(8):
+            while len(self.lineEdit_debug_message_list[i])>0:
+                self.lineEdit_debug_QlineEdit_list[i].setText(str(self.lineEdit_debug_message_list[i].pop(0)))
+        
+
+    #  事件更新2s线程，用于更新INU等需要时间计算的内容
+    def show_message_2s(self):
+        combobox_list = [
+            self.comboBox_INU_choiceTab_stand,
+            self.comboBox_INU_beginAxis_stand,
+            self.comboBox_INU_choiceTab_target,
+            self.comboBox_INU_beginAxis_loc,
+            self.comboBox_INU_beginAxis_spd
+        ]
+        choiceTab_stand=0
+        beginAxis_stand=0
+        choiceTab_target=0
+        beginAxis_loc=0
+        beginAxis_spd=0
+        get_combobox_list = [
+            choiceTab_stand,
+            beginAxis_stand,
+            choiceTab_target,
+            beginAxis_loc,
+            beginAxis_spd
+        ]
+        for i in range(len(combobox_list)):
+            try:
+                get_combobox_list[i] = int(combobox_list[i].currentText().split()[0])
+            except:
+                get_combobox_list[i]=1
+        
+        if (self.inu_plot_always == True) | self.checkBox_INU_update_always.isChecked()| self.checkBox_INU_update_once.isChecked():
+            self.checkBox_INU_update_once.setChecked(False)
+            try:lon_axis = int(self.lineEdit_INU_plot_target_lon.text().split()[0])
+            except:lon_axis = 1
+            try:lat_axis = int(self.lineEdit_INU_plot_target_lat.text().split()[0])
+            except:lat_axis = 1
+            try:stand_lon_axis = int(self.lineEdit_INU_plot_target_lon.text().split()[0])
+            except:stand_lon_axis = 1
+            try:stand_lat_axis = int(self.lineEdit_INU_plot_target_lat.text().split()[0])
+            except:stand_lat_axis = 1
+            try:plot_tab = int(self.comboBox_INU_choiceTab_target.currentText().split()[0])
+            except:plot_tab = 1
+            try:stand_tab = int(self.comboBox_INU_choiceTab_stand.currentText().split()[0])
+            except:stand_tab = 1
+            try:nspd_axis = int(self.lineEdit_INU_plot_target_northspd.text().split()[0])
+            except:nspd_axis = 1
+            try:espd_axis = int(self.lineEdit_INU_plot_target_eastspd.text().split()[0])
+            except:espd_axis = 1
+
+            skip_count = try_get_text(self.lineEdit_INU_skipcount,int,1)
+            end_count = try_get_text(self.lineEdit_INU_endcount,int,0)
+            rolls = try_get_text(self.lineEdit_INU_rolling,int,0)
+            plot_scatter_data = self.show_message_dataframe[plot_tab-1]
+            plot_stand_data = self.show_message_dataframe[stand_tab-1]
+            try:
+                if end_count==0:
+                    tar_lon = plot_scatter_data.iloc[skip_count:,lon_axis].reset_index(drop=True).rolling(rolls).mean()
+                    tar_lat = plot_scatter_data.iloc[skip_count:,lat_axis].reset_index(drop=True).rolling(rolls).mean()
+                else:
+                    tar_lon = plot_scatter_data.iloc[skip_count:-end_count,lon_axis].reset_index(drop=True).rolling(rolls).mean()
+                    tar_lat = plot_scatter_data.iloc[skip_count:-end_count,lat_axis].reset_index(drop=True).rolling(rolls).mean()
+                
+                self.scatter.setData(tar_lon,tar_lat)
+                self.scatterBegin.setData([tar_lon.iloc[0]],[tar_lat.iloc[0]])
+                self.scatterEnd.setData([tar_lon.iloc[-1]],[tar_lat.iloc[-1]])
+            except Exception as e:
+                self.debug_list_3.append('{} INU_plot 绘制scatter失败:{}'.format(self.normal_time,e))
+
+            try:
+                try:
+                    stand_lon = float(self.lineEdit_INU_plot_stand_lon.text())
+                except:
+                    try:
+                        stand_lon_axis = int(self.lineEdit_INU_plot_stand_lon.text().split()[0])
+                        if end_count==0:
+                            stand_lon = plot_stand_data.iloc[skip_count:,stand_lon_axis].reset_index(drop=True).rolling(rolls).mean()
+                        else:
+                            stand_lon = plot_stand_data.iloc[skip_count:-end_count,stand_lon_axis].reset_index(drop=True).rolling(rolls).mean()
+
+                    except Exception as e:
+                        stand_lon = 116.50271
+                        self.debug_list_3.append('获取经度失败，使用默认值{}'.format(stand_lon))
+                try:
+                    stand_lat = float(self.lineEdit_INU_plot_stand_lat.text())
+                except:
+                    try:
+                        stand_lat_axis =  int(self.lineEdit_INU_plot_stand_lat.text().split()[0])
+                        if end_count==0:
+                            stand_lat = plot_stand_data.iloc[skip_count:,stand_lat_axis].reset_index(drop=True).rolling(rolls).mean()
+                        else:
+                            stand_lat = plot_stand_data.iloc[skip_count:-end_count,stand_lat_axis].reset_index(drop=True).rolling(rolls).mean()
+                    except Exception as e:
+                        stand_lat = 39.73155
+                        self.debug_list_3.append('获取纬度失败，使用默认值{}'.format(stand_lat))
+
+                stand_lon = stand_lon*np.pi/180
+                stand_lat = stand_lat*np.pi/180
+                tar_lon = tar_lon*np.pi/180
+                tar_lat = tar_lat*np.pi/180
+
+                # print('stand_lon:{} stand_lat:{}'.format(stand_lon,stand_lat))
+                # stand_lon = try_get_text(self.lineEdit_INU_plot_stand_lon,float,39.73155)*np.pi/180
+                # stand_lat = try_get_text(self.lineEdit_INU_plot_stand_lat,float,116.50271)*np.pi/180
+                
+                dlon = tar_lon - stand_lon
+                dlat = tar_lat - stand_lat
+
+                a = np.sin(dlat / 2) ** 2 + np.cos(tar_lat) * np.cos(stand_lat) * np.sin(dlon / 2) ** 2
+                c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+                c = c*6371000
+                self.gv_pen_loc_error.setData(c)
+            except Exception as e:
+                self.debug_list_3.append('{} INU_plot 绘制位置误差失败:{}'.format(self.normal_time,e))
+            try:
+                if end_count==0:
+                    tar_Nspd = plot_scatter_data.iloc[skip_count:,espd_axis].reset_index(drop=True).rolling(rolls).mean()
+                    tar_Espd = plot_scatter_data.iloc[skip_count:,nspd_axis].reset_index(drop=True).rolling(rolls).mean()
+                else:
+                    tar_Nspd = plot_scatter_data.iloc[skip_count:-end_count,espd_axis].reset_index(drop=True).rolling(rolls).mean()
+                    tar_Espd = plot_scatter_data.iloc[skip_count:-end_count,nspd_axis].reset_index(drop=True).rolling(rolls).mean()
+                self.gv_pen_speed.setData(np.sqrt( tar_Nspd**2+tar_Espd**2 ))
+            
+            except Exception as e:
+                self.debug_list_3.append('{} INU_plot 绘制速度误差失败:{}'.format(self.normal_time,e))
+
+
+
+
+
+
+
+
+    # 事件更新5s线程，用于更新串口等对时间不敏感内容
+    def show_message_5s(self):
+        self.show_timer_count3 += 1
+        # 更新串口  #串口更新
+        if self.comboBox_update_com_flag:
+            plist = list(serial.tools.list_ports.comports())
+            com_lists = []
+            for com in plist:
+                com_lists.append(str(list(com)[0]))
+            com_lists = sorted(com_lists,key=lambda x:int(x[3:]))
+            for comboBox in self.comboBox_com_list+self.combox_com_list:
+                comboBox_com_list = []
+                for count in range(comboBox.count()):
+                    comboBox_com_list.append(comboBox.itemText(count))
+                try:    
+                    comboBox_com_list.remove('None')
+                except:
+                    if self.debug_update_5s:
+                        print('comboBox_com_list中没有None项:{}'.format(comboBox_com_list))
+                comboBox_com_list = sorted(comboBox_com_list,key=lambda x:int(x[3:]))
+                if comboBox_com_list==com_lists:
+                    continue
+                select_combo = comboBox.currentText()
+                comboBox.clear()
+                comboBox.addItem('None')
+                for com in com_lists:
+                    comboBox.addItem(com)
+                comboBox.setCurrentText(select_combo)
+        if self.comboBox_update_com_flag:
+            self.times.timeEvent_update_combobox()
+            
+            
+    # 单路多路同步更新 20240425
+    def protocal_com_change(self):
+        protocal_com = self.comboBox_protocal_com.currentText()
+        protocal_baund = self.comboBox_protocal_baund.currentText()
+        protocal_check = self.comboBox_protocal_check.currentText()
+        self.combox_set_com_1.setCurrentText(protocal_com)
+        self.combox_set_baund_1.setCurrentText(protocal_baund)
+        self.comboBox_set_check_1.setCurrentText(protocal_check)
+    def comboBox_com_change(self):
+        protocal_com = self.combox_set_com_1.currentText()
+        protocal_baund = self.combox_set_baund_1.currentText()
+        protocal_check = self.comboBox_set_check_1.currentText()
+        self.comboBox_protocal_com.setCurrentText(protocal_com)
+        self.comboBox_protocal_baund.setCurrentText(protocal_baund)
+        self.comboBox_protocal_check.setCurrentText(protocal_check)
+    # 多路文件名同步更新 20240425
+    def filenames_change(self):
+        filenames = self.lineEdit_file_names_all.text()
+        for i in range(12):
+            lineEdit = self.findChild(QtWidgets.QLineEdit,'lineEdit_file_names_%s'%(i+1))
+            if lineEdit is not None:
+                lineEdit.setText(filenames+'_'+str(i+1))
+            else:
+                print('未找到对应控件：lineEdit_file_names_%s'%(i+1))
+    # 发送装订 20240723
+    def binding_send(self,count=1):
+        send_commands = self.lineEdit_binding_command.text()
+        if not count:
+            count = 1
+        if count>2:
+            for i in range(count):
+                for j in range(12):
+                    self.list_binding_cache[j].append(send_commands)
+        try:
+            send_tab = self.comboBox_binding_com.CurrentText()
+            chosen_tab = send_tab.split()[0]
+            chosen_tab_int = int(chosen_tab)
+            for i in range(count):
+                self.binding_cache_list[chosen_tab_int-1] = send_commands
+        except:
+            self.debug_list_1.append('{} 装订载入缓存:{}'.format(self.normal_time,str(send_commands)))
+            for j in range(count):
+                for i in range(12):
+                    self.binding_cache_list[i] = send_commands
+        
+    # 激光惯导#60所 构造装订函数
+    def event_update_bingding_60s(self):
+        lineedit_data_list = []
+        for lineedit in self.binding_list_60s:
+            try:
+                get_data = float(lineedit.text())
+            except Exception as e:
+                get_data = 0
+                self.debug_list_2.append('{} 获取装订内容失败:{}'.format(self.normal_time,e))
+            lineedit_data_list.append(get_data)
+        lineedit_data_list[1] /= 180/(2**31-1)
+        lineedit_data_list[2] /= 90/(2**31-1)
+        lineedit_data_list[7] /= 0.5
+        for i in range(10):
+            lineedit_data_list[i] = int(lineedit_data_list[i])
+
+
+
+        command_list_head = ['99','66']
+        command_list_len = ['2E']
+        command_list = []
+        command_list += hexcut2list(struct.pack('B', lineedit_data_list[0]).hex().upper())
+        command_list += hexcut2list(struct.pack('<i', lineedit_data_list[1]).hex().upper())
+        command_list += hexcut2list(struct.pack('<i', lineedit_data_list[2]).hex().upper())
+        command_list += hexcut2list(struct.pack('b', lineedit_data_list[3]).hex().upper())
+        command_list += hexcut2list(struct.pack('b', lineedit_data_list[4]).hex().upper())
+        command_list += hexcut2list(struct.pack('b', lineedit_data_list[5]).hex().upper())
+        command_list += ['00']*10   
+        command_list += hexcut2list(struct.pack('b', lineedit_data_list[6]).hex().upper())
+        command_list += ['00']
+        command_list += hexcut2list(struct.pack('<h', lineedit_data_list[7]).hex().upper())
+        command_list += hexcut2list(struct.pack('<h', lineedit_data_list[8]).hex().upper())
+        command_list += hexcut2list(struct.pack('<h', lineedit_data_list[9]).hex().upper())
+        command_list += ['00']*15
+        try:
+            checks = struct.pack('B',calculate_xorsum(bytes.fromhex(''.join(command_list)))).hex().upper()
+        except Exception as e:
+            self.debug_list_3.append('{} 60所装订异或校验失败:{}'.format(self.normal_time,e))
+        command_list.append(checks)
+        command_list = command_list_len+command_list
+        try:
+            checks = struct.pack('B',calculate_checksum(bytes.fromhex(''.join(command_list)))).hex().upper()
+        except Exception as e:
+            self.debug_list_3.append('{} 60所装订和校验失败:{}'.format(self.normal_time,e))
+        command_list.append(checks)
+        try:
+            self.textEdit_binging_60s.setText(' '.join(command_list_head+command_list))
+        except Exception as e:
+            self.debug_list_3.append('{} 60所装订设置内容:{}'.format(self.normal_time,e))
+
+    # 激光惯导#60所 发送装订函数
+    def event_send_bingding_60s(self):
+        send_commands = self.textEdit_binging_60s.toPlainText()
+        try:
+            send_tab = self.comboBox_binding_com_60s.CurrentText()
+            chosen_tab = send_tab.split()[0]
+            chosen_tab_int = int(chosen_tab)
+            self.binding_cache_list[chosen_tab_int-1] = (send_commands)
+        except:
+            self.debug_list_1.append('装订载入缓存12路:{}'.format(str(send_commands)))
+            for i in range(12):
+                self.binding_cache_list[i] = (send_commands)
+    def tools_bd3x_taskDone(self,msg):
+        now = datetime.datetime.now()
+        try: self.textBrowser_tools_bd3x_msglast.setText('{} {}'.format(now.strftime('%H:%M:%S'), msg))
+        except Exception as e: print('Error:append_degugMsg: {}'.format(e))
+    
+    # 卫导接收切换
+    def change_sate_button(self):
+        self.flag_sate_receive = self.pushButton_com_open_13.text()=='开启'
+
+    # 通用卫导板卡更新发送频率
+    def sate_send1_change_time(self):
+        try:
+            auto_time = int(self.lineEdit_sate_1_0.text())
+            if auto_time>=10:
+                self.sate_send1_autotime = auto_time
+                self.sate_time1.start(self.sate_send1_autotime)
+        except Exception as e:
+            self.debug_list_2.append('{} 模块1获取定时时间错误{} {}'.format(self.normal_time,self.lineEdit_sate_1_0.text(),e))
+    def sate_send2_change_time(self):
+        try:
+            auto_time = int(self.lineEdit_sate_2_0.text())
+            if auto_time>=10:
+                self.sate_send2_autotime = auto_time
+                self.sate_time2.start(self.event_send_sate2)
+        except Exception as e:
+            self.debug_list_2.append('{} 模块2获取定时时间错误{} {}'.format(self.normal_time,self.lineEdit_sate_2_0.text(),e))
+    def sate_send3_change_time(self):
+        try:
+            auto_time = int(self.lineEdit_sate_3_0.text())
+            if auto_time>=10:
+                self.sate_send3_autotime = auto_time
+                self.sate_time3.start(self.event_send_sate3)
+        except Exception as e:
+            self.debug_list_2.append('{} 模块3获取定时时间错误{} {}'.format(self.normal_time,self.lineEdit_sate_3_0.text(),e))
+    # 滕盾惯导非控更新发送频率
+    def td_command_time_change(self):
+        try:
+            auto_time = int(self.lineEdit_binding_td_1.text())
+            if auto_time>=10:
+                self.td_send_autotime = auto_time
+                self.td_time1.start(self.td_send_autotime)
+        except Exception as e:
+            self.debug_list_2.append('{} 滕盾惯导获取定时时间错误{} {}'.format(self.normal_time, self.lineEdit_binding_td_1.text(), e))
+    # 滕盾地面仿真更新发送频率
+    def fz_command_time_change(self):
+        try:
+            auto_time = int(self.lineEdit_binding_fz_1.text())
+            if auto_time>=10:
+                self.fz_send_autotime = auto_time
+                self.fz_time1.start(self.fz_send_autotime)
+        except Exception as e:
+            self.debug_list_2.append('{} 滕盾惯导获取仿真时间错误{} {}'.format(self.normal_time, self.lineEdit_binding_fz_1.text(), e))
+    # 滕盾GNSS仿真更新发送频率
+    def gnss_command_time_change(self):
+        try:
+            auto_time = int(self.lineEdit_binding_gnss_1.text())
+            if auto_time>=10:
+                self.gnss_send_autotime = auto_time
+                self.gnss_time1.start(self.gnss_send_autotime)
+        except Exception as e:
+            self.debug_list_2.append('{} 滕盾惯导获取GNSS时间错误{} {}'.format(self.normal_time, self.lineEdit_binding_gnss_1.text(), e))
+    
+
+
+
+    def event_update_sate1(self):
+        # $GNGGA,072820.800,3943.91626718,N,11630.17567593,E,1,19,0.714,45.422,M,-10.106,M,,,1.060*55
+        ascii_list = []
+        sate_list = []
+        header = self.comboBox_sate_1_1.currentText()
+        for item in self.sate_send1_line_list:
+            try:
+                sate_list.append(item.text())
+            except:
+                sate_list.append('')
+        
+        if len(sate_list[0])>0:
+            try:sate_list[0] = str('{:.3f}'.format(float(sate_list[0])))
+            except:sate_list[0] = '000000.000'
+        if len(sate_list[1])>0:
+            try:sate_list[1] = str('{:012.8f}'.format( lat_lon2str(sate_list[1]) ))
+            except:sate_list[1] = '3943.91626718'
+        if len(sate_list[2])>0:
+            try:sate_list[2] = str('{:013.8f}'.format( lat_lon2str(sate_list[2]) ))
+            except:sate_list[2] = '11630.17567593'
+        if len(sate_list[3])>0:
+            try:sate_list[3] = str(int(sate_list[3]))
+            except:sate_list[3]='1'
+        if len(sate_list[4])>0:
+            try:sate_list[4] = str(int(sate_list[4])).rjust(2,'0')
+            except:sate_list[4]='00'
+        for i in range(3):
+            if len(sate_list[5+i])>0:
+                try:sate_list[5+i] = str( '{:.3f}'.format(float(sate_list[5+i])) )
+                except:sate_list[5+i]='0.000'
+
+        ascii_list.append(header)
+        for i in range(2):
+            ascii_list.append(sate_list[0+i])
+        ascii_list.append('N')
+        ascii_list.append(sate_list[2])
+        ascii_list.append('E')
+        for i in range(4):
+            ascii_list.append(sate_list[3+i])
+        ascii_list.append('M')
+        ascii_list.append(sate_list[7])
+        ascii_list.append('M')
+        for i in range(2):
+            ascii_list.append(sate_list[8+i])
+        # print(' '.join(ascii_list))
+        ascii_text = ','.join(ascii_list)
+        # print(ascii_text)
+        check_result = 0x00
+        for bit in ascii_text:
+            check_result^=ord(bit)
+        check_result = hex(check_result&0xff)[2:].rjust(2,'0').upper()
+        ascii_text = '$'+ascii_text+'*'+check_result
+        self.textEdit_sate_msg_1.setText(ascii_text)
+        # print(sate_list)
+
+    def event_update_sate2(self):
+        ascii_list = []
+        sate_list = []
+        header = self.comboBox_sate_2_1.currentText()
+        for item in self.sate_send2_line_list:
+            try:
+                sate_list.append(item.text())
+            except:
+                sate_list.append('')
+        if len(sate_list[0])>0:
+            try:sate_list[0] = str('{:03.3f}'.format(float(sate_list[0])))
+            except:sate_list[0] = '0.000'
+        if len(sate_list[2])>0:
+            try:sate_list[2] = str('{:03.3f}'.format(float(sate_list[2])))
+            except:sate_list[2] = '0.000'
+        if len(sate_list[4])>0:
+            try:sate_list[4] = str('{:03.3f}'.format(float(sate_list[4])))
+            except:sate_list[4] = '0.000'
+        if len(sate_list[6])>0:
+            try:sate_list[6] = str('{:04.3f}'.format(float(sate_list[6])))
+            except:sate_list[6] = '0.000'
+        if len(sate_list[7])>0:
+            try:sate_list[7] = str(sate_list[7])
+            except:sate_list[7] = 'N'
+        ascii_list.append(header)
+        for i in range(9):
+            ascii_list.append(sate_list[i])
+        ascii_text = ','.join(ascii_list)
+        # print(ascii_text)
+        check_result = 0x00
+        for bit in ascii_text:
+            check_result^=ord(bit)
+        check_result = hex(check_result&0xff)[2:].rjust(2,'0').upper()
+        ascii_text = '$'+ascii_text+'*'+check_result
+        self.textEdit_sate_msg_2.setText(ascii_text)
+        
+    def event_update_sate3(self):
+        ascii_list = []
+        sate_list = []
+        header = self.comboBox_sate_3_1.currentText()
+        for item in self.sate_send3_line_list:
+            try:
+                sate_list.append(item.text())
+            except:
+                sate_list.append('')
+                
+        if len(sate_list[0])>0:
+            try:sate_list[0] = str(sate_list[0])
+            except:sate_list[0] = 'COM1'
+        if len(sate_list[1])>0:
+            try:sate_list[1] = str(int(sate_list[1]))
+            except:sate_list[1] = '0'
+        # 处理器空闲时间的最小百分比，每秒计算 1 次。
+        if len(sate_list[2])>0:
+            try:sate_list[2] = str('{:.1f}'.format(float(sate_list[2])))
+            except:sate_list[2] = '0.0'
+        # GPS 时间质量。当前取值 Unknown或 Fine，前者表明接收机还未能计算出准确的 GPS 时间。
+        if len(sate_list[3])>0:
+            try:sate_list[3] = str(sate_list[3])
+            except:sate_list[3] = 'Unknown'
+        # GPS 周数
+        if len(sate_list[4])>0:
+            try:sate_list[4] = str(int(sate_list[4]))
+            except:sate_list[4] = '0'
+        # GPS 周内秒，精确到 ms。
+        if len(sate_list[5])>0:
+            try:sate_list[5] = str('{:.3f}'.format(float(sate_list[2])))
+            except:sate_list[5] = '0.000'
+        # 保留位 保留位 当前闰秒 678
+        for i in range(3):
+            if len(sate_list[6+i])>0:
+                try:sate_list[6+i] = str(int(sate_list[6+i]))
+                except:sate_list[6+i] = '0'
+        sate_list[8]+=';'
+        # 解状态，参考表 9- 48 解的状态 
+        if len(sate_list[9])>0:
+            try:sate_list[9] = str(sate_list[9])
+            except:sate_list[9] = 'INSUFFICIENT_OBS'
+        # 位置类型
+        if len(sate_list[10])>0:
+            try:sate_list[10] = str(sate_list[10])
+            except:sate_list[10] = 'NONE'
+        # 基线长 航向 俯仰 保留 航向标准偏差 俯仰标准偏差 
+        for i in range(6):
+            if len(sate_list[11+i])>0:
+                try:sate_list[11+i] = str('{:.4f}'.format(float(sate_list[11+i])))
+                except:sate_list[11+i] = '0.0000'
+        # 基站 ID 
+        if len(sate_list[17])>0:
+            try:sate_list[17] = str('\"{}\"'.format(int(sate_list[17])))
+            except:sate_list[17] = '\"0\"'
+        else:
+            sate_list[17] = '\"\"'
+        for i in range(5):
+            if len(sate_list[18+i])>0:
+                try:sate_list[18+i] = str(int(sate_list[18+i]))
+                except:sate_list[18+i] = '0'
+        # 保留位
+        if len(sate_list[23])>0:
+            try:sate_list[23] = str(sate_list[23])
+            except:sate_list[23] = '00'
+        if len(sate_list[24])>0:
+            try:sate_list[24] = str(int(sate_list[24]))
+            except:sate_list[24] = '0'
+        if len(sate_list[25])>0:
+            try:sate_list[25] = str(int(sate_list[24]))
+            except:sate_list[25] = '0'
+            
+        
+        ascii_list.append(header)
+        for i in range(26):
+            ascii_list.append(sate_list[i])
+        ascii_text = ','.join(ascii_list)
+        # print(ascii_text)
+        # check_result = 0x00
+        ascii_text = ascii_text.replace(';,',',')
+        check_result = hex(calculate_crc32(ascii_text.encode('ascii')))[2:].rjust(8,'0').lower()
+        ascii_text = '#'+ascii_text+'*'+check_result
+        self.textEdit_sate_msg_3.setText(ascii_text)
+
+        
+    def event_send_sate1(self):
+        if self.checkBox_sate_utc_1.isChecked():
+            utc_now = datetime.now(timezone.utc)
+            china_time = utc_now.astimezone( timezone(datetime.timedelta(hours=8)) )
+            china_utc = china_time.strftime('%H%M%S.%f')[:-3]
+            self.lineEdit_sate_1_1.setText(str(china_utc))
+        if (self.checkBox_sate_time_1.isChecked()) | (isinstance(self.sender(),QtWidgets.QPushButton)):
+            send_commands = self.textEdit_sate_msg_1.toPlainText()
+            send_tab = 'all'
+            try:
+                send_tab = self.comboBox_sate_com_1.currentText()
+                chosen_tab = int(send_tab.split()[0])
+                self.ascii_cache_list[chosen_tab-1] = send_commands
+                send_tab = str(chosen_tab)
+            except:
+                send_tab = 'all'
+                for i in range(12):
+                    self.ascii_cache_list[i]= send_commands
+            # self.debug_list_1.append('{} 卫导模块1_{}路发送装订:\n  {}'.format(self.normal_time,send_tab,send_commands))
+
+    def event_send_sate2(self):
+        if (self.checkBox_sate_time_2.isChecked()) | (isinstance(self.sender(),QtWidgets.QPushButton)):
+            # self.debug_list_2.append('{} 卫导模块2发送装订:{}'.format(self.normal_time,'default'))
+            send_commands = self.textEdit_sate_msg_2.toPlainText()
+            send_tab = 'all'
+            try:
+                send_tab = self.comboBox_sate_com_2.currentText()
+                chosen_tab = int(send_tab.split()[0])
+                self.ascii_cache_list[chosen_tab-1]= send_commands
+                send_tab = str(chosen_tab)
+            except Exception as e:
+                send_tab = 'all'
+                for i in range(12):
+                    self.ascii_cache_list[i] = send_commands
+            # self.debug_list_1.append('{} 卫导模块1_{}路发送装订:\n  {}'.format(self.normal_time,send_tab,send_commands))
+    def event_send_sate3(self):
+        if (self.checkBox_sate_time_3.isChecked()) | (isinstance(self.sender(),QtWidgets.QPushButton)):
+            # self.debug_list_2.append('{} 卫导模块2发送装订:{}'.format(self.normal_time,'default'))
+            send_commands = self.textEdit_sate_msg_3.toPlainText()
+            send_tab = 'all'
+            try:
+                send_tab = self.comboBox_sate_com_3.currentText()
+                chosen_tab = int(send_tab.split()[0])
+                self.ascii_cache_list[chosen_tab-1] = send_commands
+                send_tab = str(chosen_tab)
+            except Exception as e:
+                send_tab = 'all'
+                for i in range(12):
+                    self.ascii_cache_list[i]= send_commands
+            # self.debug_list_1.append('{} 卫导模块1_{}路发送装订:\n  {}'.format(self.normal_time,send_tab,send_commands))
+    
+    # 滕盾飞控发送装订事件
+    def event_td_send1(self):
+        if (self.checkBox_binding_td.isChecked()) | (isinstance(self.sender(),QtWidgets.QPushButton)):
+            if self.checkBox_binding_td_loop.isChecked():
+                try:int_loop_count = int(self.lineEdit_binding_td_2.text())
+                except:int_loop_count = -1
+                self.lineEdit_binding_td_2.setText(str((int_loop_count+1)%256))
+            if self.checkBox_td_update.isChecked():
+                now = datetime.now()
+                all_now = [now.year, now.month,now.day,now.hour,now.minute,now.second,now.microsecond/1000]
+                for i in range(7):
+                    self.td_command_list[i+11].setText(str(int(all_now[i])))
+            send_commands = self.textEdit_binging_td.toPlainText()
+            send_tab = 'all'
+            try:
+                send_tab = self.comboBox_binding_td.currentText()
+                chosen_tab = int(send_tab.split()[0])
+                self.binding_cache_list[chosen_tab-1] = send_commands
+                send_tab = str(chosen_tab)
+            except Exception as e:
+                send_tab = 'all'
+                for i in range(12):
+                    self.binding_cache_list[i] = send_commands
+    # 腾盾命令字更新事件
+    def td_command_change(self):
+        td_command_count = -1
+        double_text = [0,5]
+        td_command_out = []
+        for td_command in self.td_command_update_list:
+            td_command_count += 1
+            get_text = td_command.currentText()
+            try:
+                int_text = int(get_text)
+                # td_command_out.append(get_text)
+                append_list = [get_text]
+            except:
+                append_list = ['00' if td_command_count in double_text else '0']
+            td_command_out += append_list
+        # self.lineEdit_binding_td_3.setText(''.join(td_command_out))
+        try: int_text = int(''.join(td_command_out[::-1]),2)
+        except: int_text = 0
+        self.lineEdit_binding_td_3.setText(str(int_text))
+    # 腾盾GNSS更新事件
+    def td_gnss_change(self):
+        td_command_count = -1
+        double_text = [3]
+        td_command_out = []
+        for td_command in self.td_gnss_updae_list:  
+            td_command_count += 1
+            get_text = td_command.currentText()
+            try:
+                int_text = int(get_text)
+                td_command_out.append(get_text)
+            except:
+                td_command_out += ['000' if td_command_count in double_text else '0']
+        # self.lineEdit_binding_td_3.setText(''.join(td_command_out))
+        try: int_text = int(''.join(td_command_out[::-1]),2)
+        except: int_text = 0
+        self.lineEdit_binding_td_21.setText(str(int_text))
+    # 腾盾大气数据有效字
+    def td_atmos_change(self):
+        get_text = self.comboBox_binding_td_12.currentText()
+        try: int_text = int(get_text,2)
+        except: int_text = 0
+        self.lineEdit_binding_td_27.setText(str(int_text))
+    # 腾盾软件升级指令
+    def td_softUpdate_change(self):
+        get_text = self.comboBox_binding_td_13.currentText()
+        try: int_text = int(get_text,16)
+        except: int_text = 0
+        self.lineEdit_binding_td_29.setText(str(int_text))
+    # 腾盾升级软件配置
+    def td_softPara_change(self):
+        get_text = self.comboBox_binding_td_14.currentText()
+        try: int_text = int(get_text,16)
+        except: int_text = 0
+        self.lineEdit_binding_td_30.setText(str(int_text))
+    # 腾盾装订hex更修事件
+    def td_command_send_update(self):
+        td_list = []
+        header1 = ['AA','55']
+        hex_strings = 'B13C'
+        for item in self.td_command_list:
+            try: td_list.append(float(item.text()))
+            except Exception as e:
+                td_list.append(0)
+        hex_data = b''.join(calculate_td_hex(td_list)).hex().upper()
+        hex_strings+=hex_data+'00'*4
+        hex_strings_split = [hex_strings[i:i+2] for i in range(0,len(hex_strings),2)]
+        hex_strings_sum = sum([int(i,16) for i in hex_strings_split]) & 0xFFFF
+        hex_strings_sum = hex(hex_strings_sum)[2:].upper().rjust(4,'0')
+        hex_strings_sum_split = [hex_strings_sum[:2],hex_strings_sum[2:]]
+        show_data = header1+hex_strings_split+hex_strings_sum_split
+        self.textEdit_binging_td.setText(' '.join(show_data))
+    
+    # 滕盾仿真发送装订事件
+    def event_fz_send1(self):
+        if (self.checkBox_binding_fz.isChecked()) | (isinstance(self.sender(),QtWidgets.QPushButton)):
+            if self.checkBox_binding_fz_loop.isChecked():
+                try:int_loop_count = int(self.lineEdit_binding_fz_2.text())
+                except:int_loop_count = -1
+                self.lineEdit_binding_fz_2.setText(str((int_loop_count+1)%256))
+            send_commands = self.textEdit_binging_fz.toPlainText()
+            send_tab = 'all'
+            try:
+                send_tab = self.comboBox_binding_fz.currentText()
+                chosen_tab = int(send_tab.split()[0])
+                self.binding_cache_list[chosen_tab-1] = send_commands
+                send_tab = str(chosen_tab)
+            except Exception as e:
+                send_tab = 'all'
+                for i in range(12):
+                    self.binding_cache_list[i] = send_commands
+    # 仿真装订hex更修事件
+    def fz_command_send_update(self):
+        fz_list = []
+        header1 = ['AA','55']
+        hex_strings = 'D120'
+        for item in self.fz_command_list:
+            try: fz_list.append(float(item.text()))
+            except Exception as e:
+                fz_list.append(0)
+        hex_data = b''.join(calculate_fz_hex(fz_list)).hex().upper()
+        hex_strings+=hex_data
+        hex_strings_split = [hex_strings[i:i+2] for i in range(0,len(hex_strings),2)]
+        hex_strings_sum = sum([int(i,16) for i in hex_strings_split]) & 0xFF
+        hex_strings_sum = hex(hex_strings_sum)[2:].upper().rjust(2,'0')
+        show_data = header1+hex_strings_split+[hex_strings_sum]
+        self.textEdit_binging_fz.setText(' '.join(show_data))
+    
+    
+    # 滕盾GNSS发送装订事件
+    def event_gnss_send1(self):
+        if (self.checkBox_binding_gnss.isChecked()) | (isinstance(self.sender(),QtWidgets.QPushButton)):
+            if self.checkBox_binding_gnss_loop.isChecked():
+                try:int_loop_count = int(self.lineEdit_binding_gnss_2.text())
+                except:int_loop_count = -1
+                self.lineEdit_binding_gnss_2.setText(str((int_loop_count+1)%256))
+            if self.checkBox_gnss_update.isChecked():
+                now = datetime.now()
+                all_now = [now.year, now.month,now.day,now.hour,now.minute,now.second,now.microsecond/1000]
+                for i in range(7):
+                    self.gnss_command_list[i+10].setText(str(int(all_now[i])))
+            send_commands = self.textEdit_binging_gnss.toPlainText()
+            try:
+                send_tab = self.comboBox_binding_gnss.currentText()
+                chosen_tab = int(send_tab.split()[0])
+                self.binding_cache_list[chosen_tab-1] = send_commands
+            except Exception as e:
+                for i in range(12):
+                    self.binding_cache_list[i] = send_commands
+    # 腾盾GNSS更新事件
+    def gnss_status_change(self):
+        td_command_count = -1
+        double_text = [0]
+        td_command_out = []
+        for td_command in self.gnss_status_updae_list:  
+            td_command_count += 1
+            get_text = td_command.currentText()
+            try:
+                int_text = float(get_text)
+                td_command_out.append(get_text)
+            except:
+                td_command_out += ['00' if td_command_count in double_text else '0']
+        # self.lineEdit_binding_td_3.setText(''.join(td_command_out))
+        try: int_text = int(''.join(td_command_out[::-1]),2)
+        except: int_text = 0
+        self.lineEdit_binding_gnss_3.setText(str(int_text))
+    # 仿真装订hex更修事件
+    def gnss_command_send_update(self):
+        fz_list = []
+        header1 = ['AA','55']
+        hex_strings = '3C'
+        for item in self.gnss_command_list:
+            try: fz_list.append(float(item.text()))
+            except Exception as e:
+                fz_list.append(0)
+        # print(fz_list)
+        hex_data = b''.join(calculate_gnss_hex(fz_list)).hex().upper()
+        hex_strings+=hex_data
+        hex_strings_split = [hex_strings[i:i+2] for i in range(0,len(hex_strings),2)]
+        hex_strings_sum = sum([int(i,16) for i in hex_strings_split]) & 0xFF
+        hex_strings_sum = hex(hex_strings_sum)[2:].upper().rjust(2,'0')
+        show_data = header1+hex_strings_split+[hex_strings_sum]
+        self.textEdit_binging_gnss.setText(' '.join(show_data))
+
+
+
+    # 开启电源事件 20240813
+    def event_power_on(self,command='all'):
+        if isinstance(self.sender(),QtWidgets.QPushButton):
+            command = 'all'
+        serial_com = self.comboBox_power_com.currentText()
+        self.debug_list_1.append('{} 开启电源{}:{}'.format(self.normal_time,serial_com,command))
+        if str(self.config_power_model)=='1':
+            # power_serials = False
+            # for i in range(3):
+            #     try:
+            #         power_serials = serial.Serial(serial_com, 57600)
+            #         break
+            #     except Exception as e:
+            #         time.sleep(0.5)
+            #         continue
+            power_serials,debugList = tryOpenSerial(serial_com,baund=57600)
+            if power_serials:
+                power_serials.write(':OUTP 1\n'.encode('ascii'))
+                time.sleep(0.2)
+                power_serials.write(':OUTP 1\n'.encode())
+                power_serials.close()
+            else:
+                self.debug_list_1.append('{} 开启电源串口错误:{}'.format(self.normal_time,debugList)) 
+        elif str(self.config_power_model)=='2':
+            # try:
+            #     power_serials = serial.Serial(serial_com, 9600)
+            # except Exception as e:
+            #     self.debug_list_1.append('{} 开启电源串口错误:{}'.format(self.normal_time,e))
+            power_serials,debugList = tryOpenSerial(serial_com,9600)
+            if command=='all':
+                for power_count in range(4):
+                    power_serials.write(('{\"A0%s\":110000}'%(power_count+1)).encode('ascii'))
+                time.sleep(0.2)
+                for power_count in range(4):
+                    power_serials.write(('{\"A0%s\":110000}'%(power_count+1)).encode())
+            else:
+                power_serials.write(('{\"A0%s\":110000}'%(int(command))).encode())
+            power_serials.close()
+        elif str(self.config_power_model)=='3':
+            power_serials,debugList = tryOpenSerial(serial_com,9600)
+            if not power_serials:
+                self.debug_list_1.append('{} 开启电源串口错误:{}'.format(self.normal_time,debugList)) 
+                return
+            if command=='all':
+                power_serials.write(bytes.fromhex(self.powerControl_mainlist[0]))
+                time.sleep(0.1)
+                power_serials.write(bytes.fromhex(self.powerControl_mainlist[0]))
+            else:
+                try:command = int(command)
+                except:
+                    power_serials.close()
+                    self.debug_list_1.append('开启电源指令错误:{}'.format(command))
+                if (command==0)|(command>6):
+                    power_serials.write(bytes.fromhex(self.powerControl_mainlist[0]))
+                    time.sleep(0.1)
+                    power_serials.write(bytes.fromhex(self.powerControl_mainlist[0]))
+                else:
+                    commands1 = self.powerControl_openlist[command*2+1]
+                    commands2 = self.powerControl_openlist[command*2]
+                    power_serials.write(bytes.fromhex(commands1))
+                    time.sleep(0.1)
+                    power_serials.write(bytes.fromhex(commands1))
+                    time.sleep(0.1)
+                    power_serials.write(bytes.fromhex(commands2))
+                    time.sleep(0.1)
+                    power_serials.write(bytes.fromhex(commands2))
+            power_serials.close()
+        else:
+            self.show_message_automatic_list.append('未知命令:{}'.format())
+
+    # 关闭电源事件 20240813
+    def event_power_off(self,command='all'):
+        if isinstance(self.sender(),QtWidgets.QPushButton):
+            command = 'all'
+        serial_com = self.comboBox_power_com.currentText()
+        self.debug_list_1.append('{} 关闭电源{}:{}'.format(self.normal_time,serial_com,command))
+        if str(self.config_power_model)=='1':
+            
+            power_serials,debugList = tryOpenSerial(serial_com,57600)
+            if power_serials:
+                power_serials.write(':OUTP 0\n'.encode('ascii'))
+                time.sleep(0.2)
+                power_serials.write(':OUTP 0\n'.encode())
+                power_serials.close()
+            else:
+                self.debug_list_1.append('{} 关闭电源串口错误:{}'.format(self.normal_time,debugList)) 
+                
+        elif str(self.config_power_model)=='2':
+            power_serials = serial.Serial(serial_com,9600)
+            # print('com{} 电源off 命令{}'.format(serial_com,command))
+            if command=='all':
+                for power_count in range(4):
+                    power_serials.write(('{\"A0%s\":100000}'%(power_count+1)).encode('ascii'))
+                time.sleep(0.1)
+                for power_count in range(4):
+                    power_serials.write(('{\"A0%s\":100000}'%(power_count+1)).encode())
+            else:
+                power_serials.write(('{\"A0%s\":100000}'%(int(command))).encode())
+            power_serials.close()
+        
+        elif str(self.config_power_model)=='3':
+            power_serials,debugList = tryOpenSerial(serial_com,9600)
+            if not power_serials:
+                self.debug_list_1.append('{} 开启电源串口错误:{}'.format(self.normal_time,debugList)) 
+                return
+            if command=='all':
+                power_serials.write(bytes.fromhex(self.powerControl_mainlist[1]))
+                time.sleep(0.1)
+                power_serials.write(bytes.fromhex(self.powerControl_mainlist[1]))
+            else:
+                try:command = int(command)
+                except:
+                    power_serials.close()
+                    self.debug_list_1.append('开启电源指令错误:{}'.format(command))
+                if (command==0)|(command>6):
+                    power_serials.write(bytes.fromhex(self.powerControl_mainlist[1]))
+                    time.sleep(0.1)
+                    power_serials.wri5te(bytes.fromhex(self.powerControl_mainlist[1]))
+                else:
+                    commands1 = self.powerControl_closelist[command*2]
+                    commands2 = self.powerControl_closelist[command*2+1]
+                    power_serials.write(bytes.fromhex(commands1))
+                    time.sleep(0.1)
+                    power_serials.write(bytes.fromhex(commands1))
+                    time.sleep(0.1)
+                    power_serials.write(bytes.fromhex(commands2))
+                    time.sleep(0.1)
+                    power_serials.write(bytes.fromhex(commands2))
+            power_serials.close()
+        else:
+            self.show_message_automatic_list.append('未知命令:{}'.format(command))
+
+    # 点击自动设置经纬速度事件 20241028
+    def event_autoset_inu(self):
+        self.lineEdit_INU_plot_stand_lon.setText(str(self.default_longitude))
+        self.lineEdit_INU_plot_stand_lat.setText(str(self.default_latitude))
+        # self.lineEdit_INU_skipcount.setText('300')  
+        for i in range(len(self.sorted_titl_list)):
+            if '经度' in self.sorted_titl_list[i]:
+                self.lineEdit_INU_plot_target_lon.setText('{} {}'.format(i,self.sorted_titl_list[i]))
+            if '纬度' in self.sorted_titl_list[i]:
+                self.lineEdit_INU_plot_target_lat.setText('{} {}'.format(i,self.sorted_titl_list[i]))
+            if ('北' in self.sorted_titl_list[i]) & ('速' in self.sorted_titl_list[i]):
+                self.lineEdit_INU_plot_target_northspd.setText('{} {}'.format(i,self.sorted_titl_list[i]))
+            if ('东' in self.sorted_titl_list[i]) & ('速' in self.sorted_titl_list[i]):
+                self.lineEdit_INU_plot_target_eastspd.setText('{} {}'.format(i,self.sorted_titl_list[i]))
+        return 0
+    def event_reload_config(self):
+        self.read_default_para_config()
+
+
+
+    # 载入文件事件 使用df打开文件/使用数据解算hex 20240814
+    def event_load_file(self):
+        self.auto_plot_always = True
+        dir = QtWidgets.QFileDialog()
+        try:
+            path = self.constants.load_filepath
+            dir.setDirectory(path)
+        except:
+            dir.setDirectory('C:\\')
+        if dir.exec_():
+            file_path = str(dir.selectedFiles()[0])
+            self.constants.load_filepath = os.path.dirname(file_path)
+        else:
+            return False
+        # try:
+        #     df = pd.read_csv(file_path,sep='\\s+',header=None,skiprows=1)
+        # except:
+        #     df = pd.read_csv(file_path,sep='',header=None,skiprows=1)
+        try:
+            # df = pd.read_csv(file_path,sep='\\s+',header=None,skiprows=1)
+            df = pd.read_csv(file_path,sep=r'[,，\s]+',header=None,skiprows=1,engine='python')
+            self.show_message_dataframe[0] = df
+            self.show_message_automatic_list.append('{} 载入文件 长度:{} 路径:\n  {}'.format(self.normal_time,len(df),file_path))
+            self.show_timer2.start(self.default_plot_load)
+        except Exception as e:
+            self.debug_list_3.append('{} 使用空格打开文件失败:{}'.format(self.normal_time,e))
+            try:
+                df = pd.read_csv(file_path,sep=r'[,，\s]+',header=None,skiprows=1,engine='python')
+                self.show_message_dataframe[0] = df
+            except Exception as e:
+                self.debug_list_3.append('{} 使用逗号打开文件失败:{}'.format(self.normal_time,e))
+                try:
+                    if ('.bin' in file_path)|('.hex' in file_path):
+                        with open(file_path,'rb+') as f:
+                            hex_data = f.read()
+                        self.debug_list_3.append('{} 使用hex打开文件:{}'.format(self.normal_time,e))
+                    else:
+                        with open(file_path,'r') as f:
+                            hex_data = f.read()
+                            hex_data = bytes.fromhex(hex_data)
+                        self.debug_list_3.append('{} 使用bytes.fromhex打开文件:{}'.format(self.normal_time,e))
+                    self.read_rules()
+                    self.save_data_flag = True      # 开启保存
+                    self.turntable_ready = True     # 忽略转台/ 转台到位标志位
+                    self.auto_plot_always = True    # 持续更新绘图
+                    self.threading_test_flag = True
+                    self.threading_list_flag[0] = True
+                    self.lineEdit_automatic_mode_list.append('解算中')
+                    self.show_message_automatic_list.append('{} 载入hex文件并尝试解算\n{}'.format(self.normal_time,file_path))
+                    # self.threading_receive_data(0,hex_data)
+                    thread_receive = threading.Thread(target=self.threading_receive_data,args=(0,hex_data))
+                    thread_receive.setDaemon(True)
+                    thread_receive.start()
+
+
+                except Exception as e:
+                    self.debug_list_3.append('{} 使用hex打开文件失败:{}'.format(self.normal_time,e))
+
+            # print(hex_data[:100].hex())
+            # print(len(hex_data))
+        load_path = './解算规则'
+        decode_rule_path = self.comboBox_protocal_path.currentText()
+        if decode_rule_path not in self.list_notpath:
+            load_path+= '/{}'.format(decode_rule_path)
+        decode_rule_name = self.comboBox_protocal_rule.currentText()
+        with open('{}/{}.txt'.format(load_path,decode_rule_name), 'r+') as f:
+            decode_rule_file = f.read()
+        decode_struct = class_rule()
+        decode_struct.read_rule_file(decode_rule_file)
+
+
+ 
+    # 读取默认配置文件-全局串口 20240427
+    def read_default_para_com(self):
+        # 串口默认配置
+        para_name = self.para_com_filename
+        if not os.path.exists(para_name):
+            self.show_message_automatic_list.append('未读取到默认配置文件({})'.format(para_name))
+        else:
+            with open(para_name,'r',encoding='gb2312',errors='replace') as f:
+                for line in f:
+                    para_rule_list = line.split()
+                    if line.startswith('#'):
+                        continue
+                    elif len(para_rule_list)<3:
+                        continue
+                    elif para_rule_list[1]=='protocal':
+                        self.comboBox_protocal_com.setCurrentText(para_rule_list[2])
+                        self.comboBox_protocal_baund.setCurrentText(para_rule_list[3])
+                        self.comboBox_protocal_check.setCurrentText(para_rule_list[4])
+                    elif para_rule_list[1]=='turntable':
+                        self.comboBox_turntable_com.setCurrentText(para_rule_list[2])
+                    elif para_rule_list[1]=='power':
+                        self.comboBox_power_com.setCurrentText(para_rule_list[2])
+                    elif para_rule_list[1]=='temp':
+                        self.comboBox_tempbox_com.setCurrentText(para_rule_list[2])
+                    elif para_rule_list[1]=='binding':
+                        self.comboBox_binding_com.setCurrentText(para_rule_list[2])
+                    elif 'tab_' in para_rule_list[1]:
+                        self.findChild(QtWidgets.QComboBox,'combox_set_com_%s'%(para_rule_list[1][4:])).setCurrentText(para_rule_list[2])
+                        self.findChild(QtWidgets.QComboBox,'combox_set_baund_%s'%(para_rule_list[1][4:])).setCurrentText(para_rule_list[3])
+                        self.findChild(QtWidgets.QComboBox,'comboBox_set_check_%s'%(para_rule_list[1][4:])).setCurrentText(para_rule_list[4])
+                        self.findChild(QtWidgets.QComboBox,'comboBox_stopbit_%s'%(para_rule_list[1][4:])).setCurrentText(para_rule_list[5])
+                        self.findChild(QtWidgets.QPushButton,'pushButton_com_open_%s'%(para_rule_list[1][4:])).setText(para_rule_list[6])
+                    else:
+                        continue
+                        # self.show_message_automatic_list.append('read_default_para_com未知配置项：%s'%(para_rule_list))
+    # 读取默认配置文件-全局设置 20240507
+    def read_default_para_config(self):
+        para_name = self.para_config_filename
+        if not os.path.exists(para_name):
+            self.show_message_automatic_list.append('未读取到默认配置文件({})'.format(para_name))
+        else:
+            with open(para_name,'r',encoding='gb2312',errors='replace') as f:
+                for line in f:
+                    para_rule_list = line.split()
+                    if line.startswith('#'):
+                        continue
+                    elif len(para_rule_list)<3:
+                        continue
+                    try:
+                        int_para_confing = float(para_rule_list[2])
+                    except:
+                        # self.show_message_automatic_list.append('未知配置项：%s read_default_para_config'%(para_rule_list))
+                        # self.show_message_automatic_list.append('未知配置项：%s read_default_para_config'%(para_rule_list))
+                        continue
+                    # 默认转台速度设置
+                    if para_rule_list[1]=='in_spd':
+                        self.lineEdit_inside_speed.setText(para_rule_list[2])
+                        self.config_in_spd = int(para_rule_list[2])
+                    elif para_rule_list[1]=='in_acc':
+                        self.lineEdit_inside_acceleration.setText(para_rule_list[2])
+                        self.config_in_acc = int(para_rule_list[2])
+                    elif para_rule_list[1]=='out_spd':
+                        self.lineEdit_outside_speed.setText(para_rule_list[2])
+                        self.config_out_spd = int(para_rule_list[2])
+                    elif para_rule_list[1]=='out_acc':
+                        self.lineEdit_outside_acceleration.setText(para_rule_list[2])
+                        self.config_out_acc = int(para_rule_list[2])
+                    # 默认转台稳定后等待时间
+                    elif para_rule_list[1]=='hold_time':
+                        self.config_hold_time = int(para_rule_list[2])
+                    # 是否保存毫秒值
+                    elif para_rule_list[1]=='save_alldata_ms':
+                        self.config_save_alldata_ms = int(para_rule_list[2])
+                    # 是否保存毫秒值
+                    elif para_rule_list[1]=='save_alldata_s':
+                        self.config_save_alldata_s = int(para_rule_list[2])
+                    # 是否保存毫秒值
+                    elif para_rule_list[1]=='save_alldata_calib':
+                        self.config_save_alldata_calib = int(para_rule_list[2])
+                    # 是否保存毫秒值
+                    elif para_rule_list[1]=='save_readydata_ms':
+                        self.config_save_readydata_ms = int(para_rule_list[2])
+                    # 是否保存毫秒值
+                    elif para_rule_list[1]=='save_readydata_s':
+                        self.config_save_readydata_s = int(para_rule_list[2])
+                    # 是否保存标定各位置均值
+                    elif para_rule_list[1]=='save_BD_average':
+                        self.config_save_BD_average = int(para_rule_list[2])
+                    # 是否将数据保存到一个文件中
+                    elif para_rule_list[1]=='save_BD_1file':
+                        self.config_save_BD_1file = int(para_rule_list[2])
+                    # 保存时保留小数点后几位
+                    elif para_rule_list[1]=='save_decimal_point':
+                        self.save_decimal_point = int(para_rule_list[2])
+                    # 创建文件时将协议中的标题内容一并保存
+                    elif para_rule_list[1]=='save_test_title':
+                        self.save_test_title = int(para_rule_list[2])
+                    # 是否保存标定16进制原始数
+                    elif para_rule_list[1]=='save_alldata_bin':
+                        self.config_save_alldata_bin = int(para_rule_list[2])
+                    # 程控电源模式/继电器模式
+                    elif para_rule_list[1]=='power_model':
+                        self.config_power_model = int(para_rule_list[2])
+                    # 默认使用对应规则列表中的对应序号
+                    elif para_rule_list[1]=='default_protocal':
+                        self.comboBox_protocal_rule.setCurrentIndex(int(para_rule_list[2]))
+                    elif para_rule_list[1]=='default_turntable':
+                        self.comboBox_turntable_rule.setCurrentIndex(int(para_rule_list[2]))
+                    elif para_rule_list[1]=='default_binding':
+                        self.comboBox_general_rule.setCurrentIndex(int(para_rule_list[2]))
+                    elif para_rule_list[1]=='default_automatic':
+                        self.comboBox_automatic_rule.setCurrentIndex(int(para_rule_list[2]))
+                    # --------------数据解算配置项#202311#--------------	
+                    # 默认使用寻找帧头模式
+                    elif para_rule_list[1]=='decode_header_type':
+                        self.config_decode_header_type = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_sumhceck_used':
+                        self.config_default_sumhceck_used = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_sumcheck_flag':
+                        self.default_sumcheck_flag = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_sumcheck_save':
+                        self.config_default_sumcheck_save = int(para_rule_list[2])
+                    
+                        
+                    elif para_rule_list[1]=='turntable_check_status':
+                        self.config_turntable_check_status = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_longitude':
+                        self.default_longitude = float(para_rule_list[2])
+                    elif para_rule_list[1]=='default_latitude':
+                        self.default_latitude = float(para_rule_list[2])
+                    elif para_rule_list[1]=='default_g':
+                        self.default_g = float(para_rule_list[2])
+                    elif para_rule_list[1]=='default_table_row':
+                        self.config_table_row = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_table_col':
+                        self.config_table_col = int(para_rule_list[2])//2
+                    elif para_rule_list[1]=='default_table_round':
+                        self.default_table_round = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_plot_enable':
+                        self.default_plot_enable = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_plot_limit':
+                        self.default_plot_limit = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_plot_time':
+                        self.default_plot_time = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_plot_load':
+                        self.default_plot_load = int(para_rule_list[2])
+                    elif para_rule_list[1]=='save_ascii_log':
+                        self.config_save_ascii_log = int(para_rule_list[2])
+                    elif para_rule_list[1]=='save_hex_log':
+                        self.config_save_hex_log = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_loc_decimal':
+                        self.default_loc_decimal = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_plot_decimal':
+                        self.default_plot_decimal = int(para_rule_list[2])
+                    elif para_rule_list[1]=='save_turntable_status':
+                        self.save_turntable_status = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_bindWidth_0':
+                        self.default_bindWidth_0 = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_bindWidth_1':
+                        self.default_bindWidth_1 = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_bindWidth_2':
+                        self.default_bindWidth_2 = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_append_sate':
+                        self.default_append_sate = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_save_sate':
+                        self.default_save_sate = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_clear_msg':
+                        self.default_clear_msg = int(para_rule_list[2])
+                    elif para_rule_list[1]=='default_sate_length':
+                        self.default_sate_length = int(para_rule_list[2])
+                    else:
+                        continue
+                        # self.show_message_automatic_list.append('read_default_para_config未知配置项：%s'%(para_rule_list))
+    # 读取载入解算规则文件  20240513
+    # 读取规则文件并更新全局变量
+    # debug:惯导协议改文件中行60标题无法使用"卫星数"，暂时替换为其他
+    def read_rules(self):
+        # 初始化各项内容
+        self.config_sum_check = None
+        self.config_sum_check1 = None
+        self.config_sum_check2 = None
+        self.config_sum_check3 = None
+        try:
+            sender = self.sender()
+            sender_from_combox = isinstance(sender,QtWidgets.QComboBox)
+        except Exception as e:
+            print('输出sender失败:{}'.format(e))
+        if self.debug_flag:
+            print('def_read_rules')
+        # 打开规则文件
+        # try:
+        #     load_path = './解算规则'
+        #     path_name = self.comboBox_protocal_path.currentText()
+        #     if path_name not in self.list_notpath:
+        #         load_path+= '/{}'.format(path_name)
+        #     rule_name = self.comboBox_protocal_rule.currentText()
+        #     if len(rule_name)==0:
+        #         if self.debug_flag:
+        #             print('没有选择规则文件:{}'.format(rule_name))
+        #         return False
+        #     if rule_name=='选择协议':
+        #         return False
+        #     with open('{}/{}.txt'.format(load_path,rule_name), 'r',encoding='gb2312',errors='ignore') as files:
+        #         rules = files.read()
+                
+        # except Exception as e:
+        #     self.show_message_automatic_list.append('读取规则文件失败:'+str(e))
+        #     return False
+        rule_name = self.comboBox_protocal_rule.currentText()
+        table = self.tableWidget_decode_show
+        rows = table.rowCount()
+        cols = table.columnCount()
+        data = []
+        for row in range(rows):
+            row_data = []
+            for col in range(cols):
+                item = table.item(row,col)
+                if item is not None:
+                    row_data.append(item.text())
+                else:
+                    continue
+            data.append(' '.join(row_data))
+        rules = '\n'.join(data).replace('×','#').replace('√','')
+        
+
+        # 规则初始化
+        rules_lists_format = self.rules_lists_format
+        decode_rule_list = []    # 解算规则
+        decode_save_list = []    # 是否保存
+        decode_para_list = []    # 系数
+        decode_titl_list = []    # 标题
+        decode_cout_list = []    # 排序序号
+        decode_sort_list = []    # 排序后列表
+        decode_edia_list = []    # 大小端
+
+        default_edia = '>'     # 默认大小端
+
+        decode_rule = []
+        decode_save = []
+        decode_para = []
+        decode_titl = []
+        decode_cout = []
+
+        drop0data = []
+        
+        self.decode_rule_header = b'' 
+        self.decode_rule_ender = b'' 
+        read_line_count = 0
+        for lines in rules.split('\n'):
+            read_line_count+=1
+            if lines.startswith('#'):
+                if len(lines.split())<3:
+                    print('规则文件长度过少:{}'.format(lines))
+                    continue
+                elif lines.split()[1].lower() == 'baund':
+                    if sender_from_combox:
+                        self.comboBox_protocal_baund.setCurrentText(lines.split()[2])
+                        self.combox_set_baund_all.setCurrentText(lines.split()[2])
+                elif lines.split()[1].lower() == 'check':   
+                    if sender_from_combox:
+                        self.comboBox_protocal_check.setCurrentText(check2chinese(lines.split()[2]))
+                        self.comboBox_set_check_all.setCurrentText(check2chinese(lines.split()[2]))
+                elif lines.split()[1].lower() == 'header':
+                    self.decode_rule_header = bytes.fromhex(''.join(lines.split()[2:]))
+                elif lines.split()[1].lower() == 'ender':
+                    self.decode_rule_ender = bytes.fromhex(''.join(lines.split()[2:]))
+                elif lines.split()[1].lower() == 'receive_hz':
+                    self.receive_hz = try_set_text(lines.split()[2],int,200)
+                elif lines.split()[1].lower() == 'longitude':
+                    self.lineEdit_binding_longitude.setText(lines.split()[2])
+                elif lines.split()[1].lower() == 'latitude':
+                    self.lineEdit_binding_latitude.setText(lines.split()[2])
+                elif lines.split()[1].lower() == 'height':
+                    self.lineEdit_binding_height.setText(lines.split()[2])
+                elif lines.split()[1].lower() == 'alignment_time':
+                    self.lineEdit_binding_time.setText(lines.split()[2])
+                # elif lines.split()[1].lower() == 'special_flag':
+                #     self.config_special_flag = lines.split()[2]
+                elif (lines.split()[1].lower() == 'sum_check')|(lines.split()[1].lower() == 'sum'):
+                    self.config_sum_check0 = lines.split()[2]
+                elif (lines.split()[1].lower() == 'sum_check1')|(lines.split()[1].lower() == 'sum1'):
+                    self.config_sum_check1 = lines.split()[2]
+                elif (lines.split()[1].lower() == 'sum_check2')|(lines.split()[1].lower() == 'sum2'):
+                    self.config_sum_check2 = lines.split()[2]
+                elif (lines.split()[1].lower() == 'sum_check3')|(lines.split()[1].lower() == 'sum3'):
+                    self.config_sum_check3 = lines.split()[2]
+                elif lines.split()[1].lower() == 'drop0data':
+                    line_split = lines.split()[2]
+                    for i in range(9):
+                        if str(i) in line_split:
+                            drop0data.append(i)
+                
+                    
+                elif lines.split()[1].lower() == 'rulelist':
+                    continue
+                # 读取规则文件-新
+                elif lines.split()[1].lower()=='rulehead':
+                    # decode_edia_list.append(lines.split()[2])
+                    # default_edia = lines.split()[2]
+                    if len(decode_rule)==0:
+                        default_edia = lines.split()[2]
+                        continue
+                    else:
+                        decode_rule_list.append(decode_rule)
+                        decode_save_list.append(decode_save)
+                        decode_para_list.append(decode_para)
+                        decode_titl_list.append(decode_titl)
+                        decode_cout_list.append(decode_cout)
+                        decode_edia_list.append(default_edia)
+                        
+                        decode_rule = []
+                        decode_save = []
+                        decode_para = []
+                        decode_titl = []
+                        decode_cout = []
+                    default_edia = lines.split()[2]
+                else:
+                    if self.debug_flag | self.debug_read_rules:
+                        print('未知规则:<{}>split:<{}>'.format(lines,lines.split()))
+                    continue
+            # 判断不合法规则
+            elif len(lines)==0 | len(lines.split())==0:
+                continue
+            elif len(lines.split())<5:
+                self.show_message_automatic_list.append('规则文件错误:{}\n《{}》：《{}》'.format(rule_name,read_line_count,lines))
+                continue
+            elif lines.split()[0] not in rules_lists_format:
+                self.show_message_automatic_list.append('不在解算规则范围内《{}》'.format(lines))
+                continue
+            # 读取合法规则文件
+            else:
+                # 读取规则文件-新
+                lines_split = lines.split()
+                decode_rule.append(lines_split[0])
+                decode_save.append(lines_split[1])
+                decode_para.append(lines_split[2])
+                decode_titl.append(lines_split[3])
+                decode_cout.append(lines_split[4])
+        # 
+        if len(decode_rule)!=0:
+            decode_rule_list.append(decode_rule)
+            decode_save_list.append(decode_save)
+            decode_para_list.append(decode_para)
+            decode_titl_list.append(decode_titl)
+            decode_cout_list.append(decode_cout)
+            decode_edia_list.append(default_edia)
+        
+        decode_sort_list = []
+        for test_order in decode_cout_list:
+            max_count = 0
+            sorted_list = []
+            for i in range(len(test_order)):
+                if str(i) in test_order:
+                    continue
+                else:
+                    max_count = i
+                    break
+            for i in range(len(test_order)):
+                if test_order[i]=='N':
+                    sorted_list.append(str(max_count))
+                    max_count +=1
+                else:
+                    sorted_list.append(test_order[i])
+            decode_sort_list.append(sorted_list)
+        decode_fram_leng = calculate_frame_length(decode_rule_list)
+        if self.debug_flag | self.debug_read_rules:
+            print('读取规则文件')
+            print('decode_rule_list={}'.format(decode_rule_list))
+            print('decode_save_list={}'.format(decode_save_list))
+            print('decode_para_list={}'.format(decode_para_list))
+            print('decode_titl_list={}'.format(decode_titl_list))
+            print('decode_cout_list={}'.format(decode_cout_list))
+            print('decode_sort_list={}'.format(decode_sort_list))
+            print('decode_edia_list={}'.format(decode_edia_list))
+            print('decode_fram_leng={}'.format(decode_fram_leng))
+        sorted_title_list = []
+        for i in range(len(decode_save_list)):
+            sorted_title_list+=[decode_titl_list[i][decode_sort_list[i].index(str(j))] for j in range(len(decode_titl_list[i])) if decode_save_list[i][decode_sort_list[i].index(str(j))]=='1']
+        
+        if self.flag_sate_receive:
+            # sorted_title_list+=['KSXT时间','KSXT经度','KSXT纬度','KSXT高度','KSXT东速','KSXT北速','KSXT天速']
+            for i in range(6):
+                if self.constants.struct_sate.list_sate_flag[i+2]:
+                    append_title = [ self.constants.struct_sate.list_sate_name[i+2]+'_'+self.constants.struct_sate.list_sate_titl[i+2][j] for j in range(self.constants.struct_sate.list_sate_leng[i+2])]
+                    sorted_title_list += append_title
+
+        
+        self.decode_rule_list = decode_rule_list    # 解算规则
+        self.decode_save_list = decode_save_list    # 是否保存
+        self.decode_para_list = decode_para_list    # 系数
+        self.decode_titl_list = decode_titl_list    # 标题
+        self.decode_cout_list = decode_cout_list    # 排序序号
+        self.decode_sort_list = decode_sort_list    # 排序后列表
+        self.decode_edia_list = decode_edia_list    # 大小端
+        self.decode_fram_leng = decode_fram_leng    # 帧长度
+        self.sorted_titl_list = sorted_title_list   # 排序后的标题
+        list_string = []
+        for i in decode_rule_list:
+            rule_string = '<'+''.join(i)
+            list_string.append(struct.calcsize(rule_string))
+        # print('解算规则长度:{}'.format(' '.join([str(i) for i in list_string])))
+        
+        # self.comboBox_plot_beginAxis.clear()
+        # for i in range(len(sorted_title_list)):
+        #     self.comboBox_plot_beginAxis.addItem('{} {}'.format(i,sorted_title_list[i]))
+        # self.comboBox_plot_beginAxis.setCurrentIndex(1)
+        combobox_lists = [
+            self.comboBox_plot_beginAxis,
+            self.comboBox_plot_doubleAxis,
+            self.comboBox_INU_beginAxis_stand,
+            self.comboBox_INU_beginAxis_loc,
+            self.comboBox_INU_beginAxis_spd
+        ]
+        for combobox_item in combobox_lists:
+            combobox_item.clear()
+            combobox_item.addItem('')
+            combobox_item.view().setMinimumWidth(200)
+            for i in range(len(sorted_title_list)):
+                combobox_item.addItem('{} {}'.format(i,sorted_title_list[i]))
+            combobox_item.setCurrentIndex(2)
+        self.comboBox_plot_doubleAxis.setCurrentIndex(0)
+                                                
+        # self.textBrowser_fileCsv.append('主机规则载入完成')      
+        # self.fileCsv_append_flag = True
+        # 处理卫导丢0模块
+        self.drop0data = []
+        if len(drop0data)>0:
+            for i in drop0data:
+                if i in range(len(decode_save_list)):
+                    if i==0:
+                        begin = 0
+                    else:
+                        begin = sum([int(num) for num in decode_save_list[i-1]])
+                    end = sum([int(num) for num in decode_save_list[i]])
+                    for drop_count in range(begin,begin+end):
+                        self.drop0data.append(drop_count)
+                else:
+                    self.debug_list_2.append('卫导去0值范围错误')
+            # print(self.drop0data)
+        self.tableWidget_table_show.clearContents()
+        for i in range(len(self.sorted_titl_list)):
+            row = i//self.config_table_col
+            col = i%self.config_table_col*2
+            item = self.sorted_titl_list[i]
+            messages = 'row:{} col:{} data:{}'.format(row,col,item)
+            try:
+                self.tableWidget_table_show.setItem(row,col,QtWidgets.QTableWidgetItem(self.sorted_titl_list[i]))
+            except Exception as e:
+                self.debug_list_2.append('{} 显示table追加item失败：{}'.format(self.normal,messages))
+    
+    
+    def binding_change(self):
+        if self.bebug_binding:
+            print('binding_change')
+        binding_latitude = try_get_text(self.lineEdit_binding_latitude,float,0)
+        binding_longitude = try_get_text(self.lineEdit_binding_longitude,float,0)
+        binding_height = try_get_text(self.lineEdit_binding_height,float,0)
+        binding_time = try_get_text(self.lineEdit_binding_time,float,0)
+        binding_latitude = int(binding_latitude*1e7)
+        binding_longitude = int(binding_longitude*1e7)
+        binding_height = int(binding_height)
+        binding_time = int(binding_time/5)
+
+        command_list1 = ['55','AA']
+        command_list = []
+        command_list.append('FF')
+        command_list.append('66')
+        command_list+=hexcut2list(struct.pack('>i', binding_latitude).hex().upper())
+        command_list+=hexcut2list(struct.pack('>i', binding_longitude).hex().upper())
+        command_list+=hexcut2list(struct.pack('>i', binding_height).hex().upper())[-2:]
+        command_list+=hexcut2list(struct.pack('>i', binding_time).hex().upper())[-1:]
+        try:
+            checks = struct.pack('B',calculate_checksum(bytes.fromhex(''.join(command_list)))).hex().upper()
+        except Exception as e:
+            print('checks计算错误:{}'.format(e))
+            print('command_list:{}'.format(command_list))
+        command_list.append(checks)
+        if self.bebug_binding:
+            print(' '.join(command_list1+command_list))
+        self.lineEdit_binding_command.setText(' '.join(command_list1+command_list))
+    # 起始更换时刷新三轴绘图内容
+    def update_plot_axis(self):
+        try:
+            currenttext = self.comboBox_plot_beginAxis.currentText()
+            if len(currenttext)==0:
+                return False
+            begin_axis = int(currenttext.split()[0])
+        except Exception as e:
+            print('update_plot_axis函数错误:{}\t当前项<{}>'.format(e,currenttext))
+            return False
+        if begin_axis<len(self.sorted_titl_list)-3:
+            begin_axis = begin_axis
+        else:
+            begin_axis = len(self.sorted_titl_list)-3
+        for i in range(3):
+            self.findChild(QtWidgets.QLineEdit, 'lineEdit_inside_plot_axis{}'.format(i+1)).setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+    # 起始更换时刷新三轴绘图内容
+    def update_double_axis(self):
+        try:
+            currenttext = self.comboBox_plot_doubleAxis.currentText()
+            if len(currenttext)==0:
+                for i in range(3):
+                    self.findChild(QtWidgets.QLineEdit, 'lineEdit_inside_plot_doubleAxis{}'.format(i+1)).setText('')
+                return False
+            begin_axis = int(currenttext.split()[0])
+        except Exception as e:
+            print('update_double_axis函数错误:{}\t当前项<{}>'.format(e,currenttext))
+            return False
+        if begin_axis<len(self.sorted_titl_list)-3:
+            begin_axis = begin_axis
+        else:
+            begin_axis = len(self.sorted_titl_list)-3
+        for i in range(3):
+            self.findChild(QtWidgets.QLineEdit, 'lineEdit_inside_plot_doubleAxis{}'.format(i+1)).setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+    # 更新目标标题和选择
+    def update_stand_axis(self):
+        try:
+            currenttext = self.comboBox_INU_beginAxis_stand.currentText()
+            if len(currenttext)==0:
+                return False
+            begin_axis = int(currenttext.split()[0])
+            # begin_axis = int(self.comboBox_INU_beginAxis_stand.currentText().split()[0])
+        except Exception as e:
+            self.debug_list_1.append('update_stand_axis函数错误:{}\t当前项{}'.format(e,self.comboBox_INU_beginAxis_stand.currentText()))
+            return False
+        if begin_axis<len(self.sorted_titl_list)-2:
+            begin_axis = begin_axis
+        else:
+            begin_axis = len(self.sorted_titl_list)-2
+        try:
+            i=0
+            self.lineEdit_INU_plot_stand_lon.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            i+=1
+            self.lineEdit_INU_plot_stand_lat.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+        except Exception as e:
+            self.debug_list_1.append('update_stand_axis错误:{}'.format(e))
+    def update_target_loc(self):
+        try:
+            currenttext = self.comboBox_INU_beginAxis_loc.currentText()
+            if len(currenttext)==0:
+                return False
+            begin_axis = int(currenttext.split()[0])
+            # begin_axis = int(self.comboBox_INU_beginAxis_loc.currentText().split()[0])
+        except Exception as e:
+            self.debug_list_1.append('update_target_loc函数错误:{}\t当前项{}'.format(e,self.comboBox_INU_beginAxis_loc.currentText()))
+            return False
+        if begin_axis<len(self.sorted_titl_list)-2:
+            begin_axis = begin_axis
+        else:
+            begin_axis = len(self.sorted_titl_list)-2
+        try:
+            i=0
+            self.lineEdit_INU_plot_target_lon.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            i+=1
+            self.lineEdit_INU_plot_target_lat.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+        except Exception as e:
+            self.debug_list_1.append('update_target_loc错误:{}'.format(e))
+    def update_target_spd(self):
+        try:
+            currenttext = self.comboBox_INU_beginAxis_spd.currentText()
+            if len(currenttext)==0:
+                return False
+            begin_axis = int(currenttext.split()[0])
+            # begin_axis = int(self.comboBox_INU_beginAxis_spd.currentText().split()[0])
+        except Exception as e:
+            self.debug_list_1.append('update_target_loc函数错误:{}\t当前项{}'.format(e,self.comboBox_INU_beginAxis_spd.currentText()))
+            return False
+        if begin_axis<len(self.sorted_titl_list)-2:
+            begin_axis = begin_axis
+        else:
+            begin_axis = len(self.sorted_titl_list)-2
+        try:
+            i=0
+            self.lineEdit_INU_plot_target_northspd.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            i+=1
+            self.lineEdit_INU_plot_target_eastspd.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+        except Exception as e:
+            self.debug_list_1.append('update_target_loc错误:{}'.format(e))
+
+
+        
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+    
+    def stop_test(self):
+        if self.debug_flag:
+            print('停止测试')
+        self.show_message_automatic_list.append('{} 停止测试'.format(self.normal_time))
+        # if not self.threading_test_flag:
+        #     self.auto_plot_always = False
+        self.threading_test_flag = False
+        self.plan_threading_flag = False
+        self.threading_flag_sate = False
+        self.constants.struct_sate.serials = None
+        self.constants.struct_sate.serials = None
+    # 点击开始测试事件，判断测试模式
+    def begin_test(self):
+        if self.debug_flag:
+            print('开启测试')
+        self.read_rules()
+        self.default_plot_flag = True
+        self.show_timer2.start(1000)
+        protocal_rule = self.comboBox_protocal_rule.currentText()
+        protocal_com = self.comboBox_protocal_com.currentText()
+        protocal_baund = self.comboBox_protocal_baund.currentText()
+        protocal_check = self.comboBox_protocal_check.currentText()
+        turntable_rule = self.comboBox_turntable_rule.currentText()
+        turntable3x_rule = self.comboBox_turntable3x_rule.currentText()
+        turntable_com = self.comboBox_turntable_com.currentText()
+        power_com = self.comboBox_power_com.currentText()
+        binding_rule = self.comboBox_general_rule.currentText()
+        tempbox_com = self.comboBox_tempbox_com.currentText()
+        automatic_rule = self.comboBox_automatic_rule.currentText()
+        
+        if self.debug_flag | self.debug_begin_test:
+            print('protocal::rule: {}\tcom:{}\tbaund:{}\tcheck:{}'.format(protocal_rule,protocal_com,protocal_baund,protocal_check))
+            print('turntable:rule: {}\tcom:{}'.format(turntable_rule,turntable_com))
+            print('power_com:rule: {}'.format(power_com))
+            print('binding__:rule: {}'.format(binding_rule))
+            print('tempbox_c:rule: {}'.format(tempbox_com))
+            print('automatic:rule: {}'.format(automatic_rule))
+        
+        begin_test_mode = 'only_test'
+        self.save_aver_flag = False
+        self.save_data_flag = False     
+        self.save_ztrd_flag = False     # 转台到位标志位
+        self.turntable_ready = False
+        self.show_message_clear = True  # 清空12路显示信息
+        
+        
+        if not ((turntable3x_rule.lower()=='none')|(turntable3x_rule.lower()=='选择协议')):
+            begin_test_mode = 'turntable3x_test'
+        if not ((turntable_rule.lower()=='none')|(turntable_rule.lower()=='选择协议')):
+            begin_test_mode = 'turntable_test'
+        if not ((automatic_rule.lower()=='none')|(automatic_rule.lower()=='选择协议')):
+            begin_test_mode = 'automatic_test'
+        self.test_mode = begin_test_mode
+        self.show_message_12tab = [0,0,0]
+        self.show_message_automatic_list.append('{} 模式:{}'.format(self.normal_time,testmode2chinese(begin_test_mode))) 
+        if begin_test_mode=='only_test':
+            self.save_data_flag = True      # 开启保存
+            self.turntable_ready = True     # 忽略转台/ 转台到位标志位
+            self.auto_plot_always = True    # 持续更新绘图
+            self.only_test()
+        elif begin_test_mode=='turntable3x_test':
+            self.plan_threading_flag = True
+            self.bd3x_test()
+        elif begin_test_mode=='turntable_test':
+            self.plan_threading_flag = True
+            self.bd_test()
+        elif begin_test_mode=='automatic_test':
+            self.plan_threading_flag = True
+            self.turntable_ready = False
+            self.bd_plan_flag = False
+            self.plan_test()
+            
+        
+        
+    # 单独测试模式、通用惯导采集
+    def only_test(self):
+        protocal_rule = self.comboBox_protocal_rule.currentText()
+        protocal_com = self.comboBox_protocal_com.currentText()
+        protocal_baund = self.comboBox_protocal_baund.currentText()
+        protocal_check = self.comboBox_protocal_check.currentText()
+        thread_receive_list = []
+        thread_decode_list = []
+        self.threading_test_flag = False
+        self.threading_begin_time = time.time()
+        time.sleep(0.5)
+        self.threading_test_flag = True
+        self.lineEdit_automatic_mode_list.append('数据接收中')
+        # 卫导启动测试
+        self.threading_flag_sate = False
+        time.sleep(0.01)
+        if self.pushButton_com_open_13.text() == '开启':
+            self.threading_flag_sate = True
+            self.flag_sate_receive = True
+            thread_receive = threading.Thread(target=self.threading_receive_sate)
+            thread_receive.setDaemon(True)
+            thread_receive.start()
+        # 12路启动测试
+        for i in range(12):
+            self.threading_list_flag[i] = False
+            time.sleep(0.01)
+            if self.combox_com_open_list[i].text() == '开启':
+                if protocal_com.lower()=='none':
+                    self.show_message_dis1_list.append('tab_{}:线程开启，串口{}'.format(i+1,protocal_com))
+                    continue
+                self.threading_list_flag[i] = True
+                thread_receive = threading.Thread(target=self.threading_receive_data,args=(i,))
+                thread_receive.setDaemon(True)
+                # thread_receive.daemon = True
+                thread_receive_list.append(thread_receive)
+                thread_receive.start()
+        
+    # 标定测试模式、转台同步控制
+    def bd_test(self):
+        self.debugMsgList_devide.append('{} run:bd_test,test_mode:{}'.format(self.normal_time,self.test_mode))
+        if self.test_mode == 'only_test':
+            self.only_test()
+        elif self.test_mode == 'turntable_test':
+            thread_turn = threading.Thread(target=self.begin_test_bd)
+            thread_turn.setDaemon(True)
+            thread_turn.start()
+            self.only_test()
+        elif self.test_mode == 'automatic_test':
+            self.only_test()
+            self.begin_test_bd()
+        else:
+            print('转台标定时未确定标定逻辑')
+    # 标定测试模式、转台同步控制
+    def bd3x_test(self):
+        self.debugMsgList_devide.append('{} run:bd3x_test,test_mode:{}'.format(self.normal_time,self.test_mode))
+        if self.test_mode == 'only_test':
+            self.only_test()
+        elif self.test_mode == 'turntable3x_test':
+            self.events_devide.clickEvent_turntable3x_open()
+            thread_turn = threading.Thread(target=self.begin_test_3xbd)
+            thread_turn.setDaemon(True)
+            # thread_turn.daemon = True
+            thread_turn.start()
+            self.only_test()
+        elif self.test_mode == 'automatic_test':
+            self.events_devide.clickEvent_turntable3x_open()
+            self.only_test()
+            self.begin_test_3xbd()
+        else:
+            print('转台标定时未确定标定逻辑')
+            
+        
+    def plan_test(self):
+        thread_plan = threading.Thread(target=self.plan_test_threading)
+        thread_plan.setDaemon(True)
+        thread_plan.start()
+        
+        
+        
+
+    def threading_receive_data(self,thread_num,decode_hex=None):
+        if isinstance(decode_hex,bytes):
+            load_decode_hex = decode_hex
+            # self.debug_list_3.append('{} 解算hex:\n{}'.format(self.normal_time,decode_hex[:200]))
+        else:
+            load_decode_hex = b''
+            
+        receive_begin_time = time.time()
+        self.debug_list_2.append('{} tab_{}:接收进程开启 当前状态:\nthreading_test_flag:{} threading_list_flag[thread_num]:{}'.format(
+            self.normal_time,thread_num,self.threading_test_flag,self.threading_list_flag[thread_num]
+            ))
+        # 串口信息载入
+        com = self.combox_com_list[thread_num].currentText()
+        baund = self.findChild(QtWidgets.QComboBox,'combox_set_baund_%s'%(thread_num+1)).currentText()
+        check = self.findChild(QtWidgets.QComboBox,'comboBox_set_check_%s'%(thread_num+1)).currentText()
+        stop = self.findChild(QtWidgets.QComboBox,'comboBox_stopbit_%s'%(thread_num+1)).currentText()
+        name = self.findChild(QtWidgets.QLineEdit,'lineEdit_file_names_%s'%(thread_num+1)).text()
+        checks = check2serial(check)
+        stops = stop2chinese(stop)
+        if self.debug_flag | self.debug_threading:
+            print('thread_num:{}\tcom:{}\tbaund:{} check:{} stop:{} name:{}'.format(thread_num,com,baund,check,stop,name))
+        
+        # 规则信息载入
+        decode_rule_list    = self.decode_rule_list     # 解算规则
+        decode_save_list    = self.decode_save_list     # 是否保存
+        decode_para_list    = self.decode_para_list     # 系数
+        decode_titl_list    = self.decode_titl_list     # 标题
+        decode_cout_list    = self.decode_cout_list     # 排序序号
+        decode_sort_list    = self.decode_sort_list     # 排序后列表
+        decode_edia_list    = self.decode_edia_list     # 大小端
+        decode_rule_header  = self.decode_rule_header   # 帧头
+        decode_rule_ender   = self.decode_rule_ender    # 帧尾
+        decode_fram_leng    = self.decode_fram_leng     # 帧长
+        receive_hz          = self.receive_hz           # 频率
+        save_decimal_point  = self.save_decimal_point   # 精度
+        save_test_title     = self.save_test_title      # 标题
+        hz_count = 0
+        receive_s_count = 0
+        receive_hz_count = 0
+        
+        if self.debug_threading:
+            print('decode_fram_leng:{}'.format(decode_fram_leng))
+        # 测试信息初始化
+        now = datetime.now()
+        # save_time = '{:02d}{:02d}{:02d}'.format(now.hour,now.minute,now.second)
+        save_time = '{:02d}{:02d}{:02d}{:02d}{:02d}{:02d}'.format(now.year,now.month,now.day,now.hour,now.minute,now.second)
+        file_path = './测试数据/{}{}/{}/'.format(int2str(now.year),int2str(now.month),int2str(now.day))
+        # 标定保存文件路径
+        bd_file_path=file_path+str(self.plan_name)+'/'
+        
+        
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        
+        # 保存文件名
+        # if len(self.plan_name)>0:
+        #     name = '{}#{}'.format(name,self.plan_name)
+        hex_filename = '{}{}_{}_hex.hex'.format(file_path,name,save_time)
+        hz_filename  = '{}{}_{}_hz.txt'.format(file_path,name,save_time)
+        bd_filename  = '{}{}_{}_bd.txt'.format(file_path,name,save_time)
+        calib_filename= '{}{}_{}_hz_calib.txt'.format(file_path,name,save_time)
+        s_filename   = '{}{}_{}_s.txt'.format(file_path,name,save_time)
+        ave_filename = '{}{}_{}_ave.txt'.format(file_path,name,save_time)
+        hex_log_filename = '{}{}_{}_hexLog.txt'.format(file_path,name,save_time)
+        ascii_log_filename = '{}{}_{}_asciiLog.txt'.format(file_path,name,save_time)
+        
+        alldata_ms  = ''
+        alldata_s   = ''
+        all_data = b''
+        all_data += load_decode_hex
+        alldata_bin = b''
+        alldata_calib=''
+        readydata_ms= ''
+        readydata_s = ''
+        pop_count = 0
+        frame_error_count = 0
+        self.show_message_dataframe[thread_num] = pd.DataFrame([])
+        self.show_message_dataframe_cache[thread_num] = []
+        self.all_rec_hex = 0
+        self.sum_check_err_count = 0
+        all_save_data_time = 0
+        all_decode_data_time = 0
+
+
+        #累加校验列表
+        config_sum_list = [self.config_sum_check1,self.config_sum_check2,self.config_sum_check3]
+        config_sum_check_list = []
+        for configs in config_sum_list:
+            if configs is not None:
+                try:
+                    split_list = split_plus(configs)
+                    split_list = [int(num) for num in split_list]
+                    if len(split_list)==3:
+                        config_sum_check_list.append(split_list) 
+                except Exception as e:
+                    self.debug_list_2.append('{} 获取校验和2错误:{}'.format(self.normal_time,e))
+                    
+
+        if len(config_sum_check_list)==0:
+            self.config_sum_check = None
+            sum_check_zero = []
+        else:
+            self.config_sum_check = config_sum_check_list
+            sum_check_zero = [0]
+        if not self.config_default_sumhceck_used:
+            self.config_sum_check = None
+            sum_check_zero = []
+        config_sum_check = self.config_sum_check
+            
+        
+        
+        
+        sorted_title_list = []
+        for i in range(len(decode_save_list)):
+            sorted_title_list+=[decode_titl_list[i][decode_sort_list[i].index(str(j))] for j in range(len(decode_titl_list[i])) if decode_save_list[i][decode_sort_list[i].index(str(j))]=='1']
+        zeros_list = [0 for i in range(len(sorted_title_list))]+sum_check_zero
+        
+        
+        sate_zeros = []
+        for i in range(6):
+            if self.constants.struct_sate.list_sate_flag[i+2]:
+                sate_zeros += [0]*self.constants.struct_sate.list_sate_leng[i+2]
+        self.default_sate_list = sate_zeros
+        if self.flag_sate_receive:
+            zeros_list+=self.default_sate_list
+        last_not0data = zeros_list
+        receive_data_s = zeros_list
+        continue_check = False
+        
+        if self.flag_sate_receive:
+            last_not0data_sate = self.default_sate_list
+            
+        # 创建标题
+        if save_test_title &self.config_save_BD_1file:
+            if not os.path.exists(s_filename):
+                with open(s_filename,'a+') as f:
+                    f.write('\t'.join(sorted_title_list)+'\n')
+        # 创建串口线程
+        if not isinstance(decode_hex,bytes):
+            
+            serials,debugList = tryOpenSerial(com=com,baund=baund,parity=checks,stopbits=stops,maxReryCount=6,delay=0.5)
+            if not serials: 
+                self.debug_list_2.append('{} tab_{}:第五次开启串口失败,com:{},线程关闭 {}'.format(self.normal_time,thread_num,com,debugList))
+                self.threading_list_flag[thread_num] = False
+                self.show_message_automatic_list.append('{} tab_{} com:{} 开启失败'.format(self.normal_time,thread_num,com))
+                
+              
+        threading_begin_time = time.time()  
+        if isinstance(decode_hex,bytes):
+            frame_list = [ all_data[i*decode_fram_leng:(i+1)*decode_fram_leng] for i in range(len(all_data)//decode_fram_leng) ]
+            frame_list_len = len(frame_list)
+            frame_list_count = 0
+
+        hex_log_list = []
+        ascii_log_list = []
+
+        # 开始测试
+        while self.threading_test_flag & self.threading_list_flag[thread_num]:
+            # 发送装订指令
+            try:
+                cmd_time = time.time()-threading_begin_time
+                if (len(self.binding_cache_list[thread_num])>0)&((cmd_time)>self.list_binding_cache_waitTime):
+                    send_commands = self.binding_cache_list[thread_num]
+                    self.binding_cache_list[thread_num] = ''
+                    serials.write(bytes.fromhex(send_commands))
+                    # print(send_commands)
+                    self.debug_list_1.append('{} 发送装订:{}'.format(self.normal_time,send_commands))
+                    if self.config_save_hex_log:
+                        hex_log_list.append(send_commands)
+                        if len(hex_log_list)>100:
+                            with open(hex_log_filename,'a+') as f:
+                                f.write('\n'.join(hex_log_list)+'\n')
+                            hex_log_list = []
+            except Exception as e:
+                # print('发送装订失败')
+                self.debug_list_1.append('{} 发送装订失败{}\n{}发送装订失败{}'.format(self.normal_time,send_commands,self.normal_time,e))
+            try:
+                if len(self.constants.cache_sendHexList[thread_num])>0:
+                    send_commands = self.constants.cache_sendHexList[thread_num]
+                    self.constants.cache_sendHexList[thread_num] = ''
+                    serials.write(bytes.fromhex(send_commands))
+                if len(self.constants.cache_sendAsciiList[thread_num])>0:
+                    send_commands = self.constants.cache_sendAsciiList[thread_num]
+                    self.constants.cache_sendAsciiList[thread_num] = ''
+                    serials.write(send_commands.encode('ascii'))
+            except Exception as e:
+                # print('发送装订失败')
+                self.debug_list_1.append('{} 发送装订失败{}\n{}发送装订失败{}'.format(self.normal_time,send_commands,self.normal_time,e))
+            
+            try:
+                if len(self.ascii_cache_list[thread_num])>0:
+                    send_commands = str(self.ascii_cache_list[thread_num])+'\r\n'
+                    serials.write(send_commands.encode('ascii'))
+                    self.ascii_cache_list[thread_num] = ''
+                    if self.config_save_ascii_log:
+                        ascii_log_list.append(send_commands)
+                        if len(ascii_log_list)>100:
+                            with open(ascii_log_filename,'a+') as f:
+                                f.write('\n'.join(ascii_log_list)+'\n')
+                            ascii_log_list = []
+                    # self.debug_list_1.append('{}：发送装订:{}'.format(thread_num,send_commands))
+            except Exception as e:
+                # print('发送装订失败')
+                self.debug_list_1.append('{} 发送装订失败{}\n{}发送装订失败{}'.format(self.normal_time,send_commands,self.normal_time,e))
+
+
+            # 满足接收要求
+            try:
+                waiting = serials.in_waiting
+            except:
+                waiting = 0
+            if waiting>=decode_fram_leng:
+                cache_hex_data = serials.read(waiting)
+                self.all_rec_hex+=waiting
+                if self.config_save_alldata_bin:
+                    alldata_bin+=cache_hex_data
+                all_data += cache_hex_data
+            # 等待转台第一次到位
+            if not self.turntable_ready:
+            # if not self.serial_test_begin_flag:
+                all_data = b''
+                alldata_bin = b''
+            # print(all_data[:200])
+            # 保存原始数据
+            if (self.config_save_alldata_bin)&(time.time()-threading_begin_time>10):
+                with open(hex_filename,'ab+') as f:
+                    f.write(alldata_bin)
+                    alldata_bin = b''
+                    threading_begin_time = time.time()
+            # 长度满足解算要求
+            if isinstance(decode_hex,bytes):
+                hex_length_result = (len(frame_list)>0) & (frame_list_count<(len(frame_list)-1))
+                # print(len())
+            else:
+                hex_length_result = (len(all_data)>=decode_fram_leng*2)&(len(all_data)>1)
+            if hex_length_result:
+                self.show_message_12tab[0]+=1
+                decode_begin_time = time.time()
+                if isinstance(decode_hex,bytes):
+                    frame = frame_list[frame_list_count]
+                    next_frame = frame_list[frame_list_count+1]
+                else:
+                    frame = all_data[:decode_fram_leng]
+                    next_frame = all_data[decode_fram_leng:decode_fram_leng*2]
+                if frame.startswith(decode_rule_header) & next_frame.startswith(decode_rule_header): 
+                    
+                    frame_error_count = 0
+                    if isinstance(decode_hex,bytes):
+                        frame_list_count+=1
+                    else:
+                        all_data = all_data[decode_fram_leng:]
+                    receive_data_hz,sum_check_result = decode_hex_frame_list(frame,decode_rule_list,decode_save_list,decode_para_list,decode_sort_list,decode_edia_list,config_sum_check)
+                    # receive_data_hz[-1] = sum_check_result
+                    
+                    if config_sum_check is not None:
+                        self.show_message_12tab[2]+=1
+                        receive_data_hz.append(sum_check_result)
+                        if sum_check_result:
+                            sum_check_result = True
+                        else:
+                            self.sum_check_err_count+=1
+                            if self.default_sumcheck_flag:
+                                continue
+                    hz_count+=1
+                    receive_hz_count+=1
+                            
+                    # 追加卫导
+                    if self.flag_sate_receive:
+                        # print(self.constants.struct_sate.list_sate_msg)
+                        for num in range(6):
+                            if (self.settings.sate_append_sate==True)&(self.constants.struct_sate.list_sate_flag[num+2]==True):
+                                # receive_data_hz +=self.list_sate_KSXT
+                                receive_data_hz += self.constants.struct_sate.list_sate_msg[num+2]
+                                
+                    alldata_ms += '\t '.join(['{:.{}f}'.format(i,save_decimal_point)if type(i)==float else str(int(i)) for i in receive_data_hz])+'\n'
+                    readydata_ms += '\t '.join(['{:.{}f}'.format(i,save_decimal_point) for i in receive_data_hz])+'\n'
+                    # 去除卫导转发时的零
+                    if len(self.drop0data)>0:
+                        last_not0data = [ last_not0data[i] if (float(receive_data_hz[i])==0) else receive_data_hz[i]  for i in range(len(receive_data_hz))]
+                    
+                        
+                    
+                    # 处理累积calib数据
+                    # alldata_calib+=str(receive_hz_count).ljust(10,' ')+'\t'
+                    if self.config_save_alldata_calib:
+                        alldata_calib+=str(receive_data_hz[0]).ljust(10,' ')+'\t'
+                        for i in range(6):
+                            alldata_calib+=str(receive_data_hz[i+1]).rjust(16,' ')+'\t'
+                        alldata_calib+=str(self.bd_calib_flag).rjust(2,' ')+'\n'
+                            # calib_receive_data_hz+=str(receive_data_hz[0]).ljust(10,' ')+'\t'
+                            
+                    receive_data_s = [receive_data_s[i]+receive_data_hz[i] for i in range(len(receive_data_hz))]
+                            
+                    if hz_count>=receive_hz: 
+                        save_data_begin_time = time.time()
+                        hz_count = 0
+                        receive_s_count+=1  
+                        receive_data_s = [i/receive_hz for i in receive_data_s]
+                        try:
+                            if len(self.drop0data)>0:
+                                for i in self.drop0data:
+                                    receive_data_s[i] = last_not0data[i]
+                        except Exception as e:
+                            print('e:{} data:{}'.format(e,self.drop0data))
+                        data_save_lists = ['{:.{}f}'.format(i,save_decimal_point)if type(i)==float else str(int(i)) for i in receive_data_s]
+                        receive_data_save = '\t'.join(data_save_lists)
+                        show_data_save = '    '.join(data_save_lists)
+                        self.show_message_list[thread_num].append(show_data_save)
+                        # self.show_message_dataframe[thread_num] = pd.concat([self.show_message_dataframe[thread_num],pd.DataFrame(receive_data_s).T],axis=0)
+                        self.show_message_dataframe_cache[thread_num].append(receive_data_s)
+                        receive_data_s = zeros_list
+                        
+                        # 满1s开始保存
+                        # 常态保存
+                        if isinstance(decode_hex,bytes):
+                            self.automatic_time = (len(frame_list)-frame_list_count)/len(frame_list)*100
+                        if self.config_save_alldata_s:
+                            with open(s_filename,'a+') as f:
+                                f.write(receive_data_save+'\n')
+                        # 常态毫秒保存
+                        if self.config_save_alldata_ms:
+                            with open(hz_filename,'a+') as f:
+                                f.write(alldata_ms)
+                                alldata_ms = ''
+                        # 到位分文件秒值保存
+                        if (self.config_save_readydata_s==1)&(self.serial_test_begin_flag):
+                            try:
+                                # bd_file_path_s = '{}{}/'.format(bd_file_path,name)
+                                bd_file_path_s = '{}{}/{}/'.format(file_path,name,self.plan_name)
+                                if not os.path.exists(bd_file_path_s):
+                                    os.makedirs(bd_file_path_s)
+                                    self.debug_list_2.append('{} 创建文件夹{}'.format(self.normal_time,bd_file_path_s))
+                                    # print(bd_file_path_ms)
+                                save_file_name = '{}/{}_BD{}#{}#{}_s.txt'.format(bd_file_path_s,name,self.bd_count,self.bd_test_flag,save_time)
+                                # try:
+                                #     if not os.path.exists(save_file_name):
+                                #         f.write(self.)
+                                with open(save_file_name,'a+') as f:
+                                    f.write(receive_data_save+'\n')
+                            except Exception as e:
+                                self.debug_list_3.append('{}保存readydata_s文件失败:{}'.format(thread_num,e))
+                        if (self.config_save_readydata_ms==1)&(self.serial_test_begin_flag):
+                            try:
+                                # bd_file_path_ms = '{}{}/'.format(bd_file_path,name)
+                                bd_file_path_ms = '{}{}/{}/'.format(file_path,name,self.plan_name)
+                                if not os.path.exists(bd_file_path_ms):
+                                    os.makedirs(bd_file_path_ms)
+                                    self.debug_list_2.append('{}创建文件夹{}'.format(self.normal_time,bd_file_path_ms))
+                                    # print(bd_file_path_ms)
+                                save_file_name = '{}/{}_BD{}#{}#{}_hz.txt'.format(bd_file_path_ms,name,self.bd_count,self.bd_test_flag,save_time)
+                                with open(save_file_name,'a+') as f:
+                                    f.write(readydata_ms) 
+                                    readydata_ms = ''
+                            except Exception as e:
+                                self.debug_list_3.append('{}保存readydata_ms文件失败:{}'.format(thread_num,e))
+                        else:
+                            readydata_ms = ''
+                        # calib标定保存
+                        if self.config_save_alldata_calib:
+                            try:
+                                with open(calib_filename,'a+') as f:
+                                    f.write(alldata_calib)
+                                    alldata_calib = ''
+                            except:
+                                # print('保存alldata_calib文件失败')
+                                self.debug_list_3.append('保存all_data_calib文件失败')
+                        else:
+                            alldata_calib = ''
+                            
+                        save_data_end_time = time.time()-save_data_begin_time
+                        self.lineEdit_debug_message_list[1].append('保存数据耗时:{:.6f}'.format(save_data_end_time))
+                        all_save_data_time+=save_data_end_time
+                        self.lineEdit_debug_message_list[5].append('保存数据总耗时:{:.6f}'.format(all_save_data_time))
+
+                        if thread_num==0:
+                            self.automatic_time =  time.time() - self.threading_begin_time 
+                                
+                        decode_end_time = time.time()-decode_begin_time
+                        self.lineEdit_debug_message_list[4].append('解算耗时:{:.6f}'.format(decode_end_time))
+                        all_decode_data_time+=decode_end_time
+                        self.lineEdit_debug_message_list[5].append('解算数据总耗时:{:.6f}'.format(all_decode_data_time))
+
+
+                        
+                else:
+                    self.show_message_12tab[1]+=1
+                    frame_error_count+=1
+                    # all_data = all_data[1:]
+                    if isinstance(decode_hex,bytes):
+                        all_data  =b''.join(frame_list[frame_list_count:])
+                        frame_list_count = 0
+                    hex_find_hex = all_data.find(decode_rule_header)
+                    if hex_find_hex==-1:
+                        all_data = b''
+                        # self.show_message_automatic_list.append('{} 找不到帧头'.format(self.normal_time))
+                        if frame_error_count==1:
+                            self.debug_list_4.append('{} 找不到帧头'.format(self.normal_time))
+                    elif hex_find_hex==0:
+                        all_data = all_data[1:]
+                        # print('hex_find_hex:{} len:{} decode_rule_header:{} head:{}'.format(
+                        #     hex_find_hex,len(all_data),decode_rule_header,all_data[:6]
+                        #     ))
+                    else:
+                        try:
+                            all_data = all_data[hex_find_hex:]
+                        except:
+                            all_data = all_data[1:]
+                        # 等待
+                        self.lineEdit_debug_message_list[6].append('{} 丢帧重排:{} '.format(
+                            self.normal_time,len(all_data)
+                            ))
+                    pop_count+=1
+                    self.lineEdit_debug_message_list[0].append('帧头错误计数：{}'.format(pop_count))
+                    
+                    if frame_error_count>decode_fram_leng*2:
+                        frame_error_count-=decode_fram_leng*receive_hz*60*5
+                        if hex_find_hex==-1:
+                            self.debug_list_4.append('{} 找不到帧头'.format(self.normal_time))
+                        else:
+                            self.debug_list_4.append('{} 找到帧头但长度错误'.format(self.normal_time))
+                    
+                    frame_list = [ all_data[i*decode_fram_leng:(i+1)*decode_fram_leng] for i in range(len(all_data)//decode_fram_leng) ]
+                
+
+                
+            else:
+                time.sleep(0.001)
+                if isinstance(decode_hex,bytes):
+                    self.lineEdit_automatic_mode_list.append('解算完成')
+                    self.automatic_time = 0 
+                    self.threading_test_flag = False
+                    self.threading_list_flag[thread_num] = False
+
+    
+    def threading_receive_sate(self):
+        com = self.combox_set_com_13.currentText()
+        baund = self.combox_set_baund_13.currentText()
+        check = self.comboBox_set_check_13.currentText()
+        stop = self.comboBox_stopbit_13.currentText()
+        name = self.lineEdit_file_names_13.text()
+        check = check2serial(check)
+        stop = stop2chinese(stop)   
+        try:
+            serials = serial.Serial(com, baund, parity=check,stopbits=stop)
+            # self.constants.init_send_struct()
+            self.constants.struct_sate.serials = serials
+        except:
+            time.sleep(0.01)
+            try:
+                serials = serial.Serial(com, baund, parity=check,stopbits=stop)
+                self.constants.struct_sate.serials = serials
+                self.constants.struct_sate.serials = serials
+            except Exception as e:
+                self.threading_flag_sate = False
+                self.debug_list_2.append('{} tab_{}:开启串口失败,com:{},线程关闭 {}'.format(self.normal_time,13,com,e))
+        
+        # 测试信息初始化
+        now = datetime.now()
+        
+        file_path = './测试数据/{}{}/{}/'.format(int2str(now.year),int2str(now.month),int2str(now.day))
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+            
+        save_time = '{:02d}{:02d}{:02d}{:02d}{:02d}{:02d}'.format(now.year,now.month,now.day,now.hour,now.minute,now.second)
+        save_name = '{}{}_sate_{}.txt'.format(file_path,name,save_time)
+        # serials.write('GPGGA 0.1\r\n'.encode('ascii'))
+        # serials.write('KSXT 0.1\r\n'.encode('ascii'))
+        # serials.write('KSXT 0.1\r\n'.encode('ascii'))
+        
+        chche_text = ''
+        while self.threading_flag_sate:
+            while len(self.constants.struct_sate.list_sate_send)>0:
+                self.constants.struct_sate.serials.write(self.constants.struct_sate.list_sate_send.pop(0))
+            try:
+                waiting = serials.in_waiting
+                if waiting>0:
+                    chche_text = serials.readline().decode('ascii').replace('\r','').replace('\n','')
+                    # print(chche_text)
+                    self.constants.struct_sate.append_sate_receive(chche_text)
+                    
+            except Exception as e:  
+                self.debug_list_1.append('threading_receive_sate错误1:{}'.format(e))
+            
+            try:
+                if len(chche_text)>0:
+                    if self.settings.sate_save_sate:
+                        with open(save_name,'a+') as f:
+                            f.write(chche_text+'\n')
+                    # if '$GNGGA' in chche_text:
+                    #     self.list_sate_ascii_msg[1].append(chche_text)
+                    #     self.list_sate_GGA = GPGGA2loc(chche_text)
+                    # elif '$KSXT' in chche_text:
+                    #     self.list_sate_ascii_msg[2].append(chche_text)
+                    #     self.list_sate_KSXT = KSXT2spd(chche_text)
+                    # else:
+                    #     self.list_sate_ascii_msg[0].append(chche_text)
+                    for i in range(8):
+                        while len(self.constants.struct_sate.list_sate_ascii_msg[i])>0:
+                            show_msg = self.constants.struct_sate.list_sate_ascii_msg[i].pop(0)
+                            # print('{} :{}'.format(i,show_msg))
+                            # self.init_ui.textBrowser_ascii_list[i].append(show_msg)
+                            self.list_sate_ascii_msg[i].append(show_msg)
+                            self.list_sate_last[i] = show_msg
+
+                    # chche_text = ''
+                    # for i in range(6):
+                    #     while len(self.constants.struct_sate.list_sate_name[i+2])>0:
+                    #         self.init_ui.textBrowser_ascii_list[i+2].append(self.constants.struct_sate.list_sate_name[i+2].pop(0))
+            except Exception as e:
+                self.debug_list_1.append('threading_receive_sate错误2:{}'.format(e))
+            
+            time.sleep(0.01)
+        self.constants.struct_sate.serials = None
+        
+    
+    def plan_test_threading(self):
+        count =0
+        load_path = './自动规则'
+        decode_rule_path = self.comboBox_automatic_path.currentText()
+        if decode_rule_path not in self.list_notpath:
+            load_path+= '/{}'.format(decode_rule_path)
+        select_plan_name = self.comboBox_automatic_rule.currentText()
+        plan_rule_name = '{}/{}.txt'.format(load_path,select_plan_name)
+        try:
+            plan_files = pd.read_csv(plan_rule_name,sep='\\s+',header=None,encoding='gb2312')
+        except:
+            plan_files = pd.read_csv(plan_rule_name,sep='\\s+',header=None,encoding='utf-8')
+        max_plan = len(plan_files)-1
+        wait_count = 0
+        real_time = time.time()
+        begin_time = time.time()
+        while self.plan_threading_flag:
+            time.sleep(0.5)
+            try:
+                list_plan = list(plan_files.iloc[count])
+            except:
+                # print(plan_files)
+                self.show_message_automatic_list.append('{} 自动测试结束'.format(self.normal_time))
+                self.plan_threading_flag = False
+                break
+            # print(list_plan)
+            if list_plan[0].startswith('#'):
+                count+=1
+            elif list_plan[1]=='wait':
+                try:    wait_time = int(list_plan[2])
+                except: wait_time = 1
+                # print('wait等待时间:{:.2f}'.format(time.time()-real_time))
+                self.lineEdit_automatic_mode_list.append('自动模式:等待中')
+                if time.time()-begin_time>wait_time:
+                    count+=1
+                    begin_time = time.time()
+                else:
+                    self.automatic_time = wait_time-(time.time()-begin_time)
+                    time.sleep(1)
+                    wait_count+=1
+            elif list_plan[1]=='time':
+                clock_time = list_plan[2]
+                try:
+                    clock_time = datetime.strptime(clock_time,'%H:%M')
+                    hour = clock_time.hour
+                    minute = clock_time.minute
+                except:
+                    self.debug_list_1.append('解算到点时刻失败:{}'.format(clock_time))
+                    count+=1
+
+                now = datetime.now()
+                if now.hour == hour and now.minute == minute:
+                    self.debug_list_1.append('time时间:{:.2f} {}'.format(time.time()-real_time,clock_time))
+                    count+=1
+                else:
+                    time.sleep(0.5)
+                    wait_count+=1
+            elif list_plan[1]=='power':
+                count+=1
+                print('power电源时间:{:.2f}'.format(time.time()-real_time))
+                if 'on' in list_plan[2].lower():
+                    self.event_power_on(try_split_power_command(list_plan[2]))
+                elif 'off' in list_plan[2].lower():
+                    self.event_power_off(try_split_power_command(list_plan[2]))
+                    self.plan_name = ''
+            elif 'bwat' in list_plan[1].lower():
+                try:num = int(list_plan[2])
+                except:num = 1
+                count+=1
+                self.list_binding_cache_waitTime = num
+                self.binding_send(count=num)
+            elif 'bind' in list_plan[1].lower():
+                try:num = int(list_plan[2])
+                except:num = 1
+                count+=1
+                self.list_binding_cache_waitTime = 0
+                self.binding_send(count=num)
+                begin_time = time.time()
+            elif 'test' in list_plan[1].lower():
+                count+=1
+                begin_time = time.time()
+                if 'on' in list_plan[2].lower():
+                            
+                    self.save_data_flag = True      # 开启保存
+                    self.turntable_ready = True     # 忽略转台/ 转台到位标志位
+                    self.auto_plot_always = True    # 持续更新绘图
+                    self.only_test()
+                    self.debug_list_1.append('{} {}'.format(self.normal_time,'开启测试'))
+                elif 'off' in list_plan[2].lower():
+                    self.debug_list_1.append('{} {}'.format(self.normal_time,'停止测试'))
+                    self.threading_test_flag = False
+                else:
+                    self.debug_list_1.append('{} {} {}'.format(self.normal_time,'未知测试命令',list_plan[2]))
+
+            elif list_plan[1]=='name':
+                print('name电源时间:{:.2f}'.format(time.time()-real_time))
+                count+=1
+                try:    self.plan_name = str(list_plan[2])
+                except: self.plan_name = 'None'
+                begin_time = time.time()
+            elif list_plan[1]=='bd':
+                print('bd电源时间:{:.2f}'.format(time.time()-real_time))
+                count+=1
+                if list_plan[2]=='on':
+                    self.threading_test_flag = False
+                    time.sleep(0.2)
+                    self.test_mode = 'only_test'
+                    self.threading_test_flag = True
+                    time.sleep(0.1)
+                    self.turntable_ready = False
+                    self.bd_test()
+                    begin_time = time.time()
+                else:
+                    try:
+                        # self.test_mode = 'turntable_test'
+                        bd_name = int(list_plan[2])   
+                        self.comboBox_turntable_rule.setCurrentIndex(bd_name)
+                        self.threading_test_flag = False
+                        time.sleep(0.2)
+                        self.threading_test_flag = True
+                        time.sleep(0.1)
+                        self.turntable_ready = False
+                        self.bd_test()
+                        begin_time = time.time()
+                    except Exception as e:
+                        # print('设置错误_bd_name')
+                        self.show_message_automatic_list.append('{} 自动测试错误:{} 错误'.format(self.normal_time,list_plan[2]))
+                        self.debug_list_1.append('{} 双轴错误:{} 错误\n{}'.format(self.normal_time,list_plan[2],e))
+            elif list_plan[1].lower()=='3xbd':
+                count+=1
+                try:
+                    bd_name = int(list_plan[2])
+                    self.comboBox_turntable3x_rule.setCurrentIndex(bd_name)
+                    self.threading_test_flag = False
+                    time.sleep(0.2)
+                    self.threading_test_flag = True
+                    time.sleep(0.1)
+                    self.turntable_ready = False
+                    self.bd3x_test()
+                    begin_time = time.time()
+                    
+                    
+                except Exception as e:
+                    self.show_message_automatic_list.append('{} 自动测试错误:{} 错误'.format(self.normal_time,list_plan[2]))
+                    self.debug_list_1.append('{} 三轴标定错误:{} 错误\n{}'.format(self.normal_time,list_plan[2],e))
+                    
+                
+                
+            elif list_plan[1]=='temp':
+                # print('bd电源时间:{:.2f}'.format(time.time()-real_time))
+                count+=1
+                temp_com = self.comboBox_tempbox_com.currentText()
+                temp_serial = False
+                debug = None
+                for i in range(5):
+                    try:
+                        temp_serial = serial.Serial(temp_com, 9600)
+                        break
+                    except Exception as e:
+                        time.sleep(0.5)
+                        debug = e
+                if not temp_serial:
+                    self.show_message_automatic_list.append('{} 温箱: 开启错误:'.format(self.normal_time))
+                    self.debug_list_1.append('{} 温箱: 控制错误:\n\t{}'.format(self.normal_time,debug))
+                else:
+                    temp_commands = None
+                    if 'on' in list_plan[2].lower():
+                        temp_commands = 'POWER,ON'
+                    elif 'off' in list_plan[2].lower():
+                        temp_commands = 'POWER,OFF'
+                    else :
+                        try:
+                            temp_commands = 'TEMP,S{}'.format(int(list_plan[2]))
+                        except Exception as e:
+                            temp_commands = False   
+                    result = False
+                    for i in range(3):
+                        if temp_commands:
+                            temp_serial.write(temp_commands.encode())
+                        time.sleep(0.1)
+                        wait = temp_serial.in_waiting
+                        if wait>0:
+                            result = temp_serial.read(wait).decode()
+                            break
+                    if result:
+                        self.show_message_automatic_list.append('{} 温箱: {}'.format(self.normal_time, result))
+                    else:
+                        self.show_message_automatic_list.append('{} 错误: {}'.format(self.normal_time,temp_commands))
+                    try:
+                        temp_serial.close()
+                    except Exception as e:
+                        self.debug_list_1.append('{} 温箱: 关闭串口错误:{}\n\t{}'.format(self.normal_time,temp_com,e))
+            else:
+                print('未知控制命令:{}，跳过'.format(list_plan))
+                count+=1
+    
+
+
+    # 转台标定_转动
+    def begin_test_bd(self):
+        # print('开始转台标定')
+        self.show_message_dis1_list.append('{} 开始转台标定'.format(self.normal_time))
+        bd_count = 0
+        inside_location = 0
+        outside_location = 0
+        inside_speed = 0
+        outside_speed = 0
+        inside_acceleration = 20
+        outside_acceleration = 20
+        
+        rec_tt_out_count = 0
+        out_time_show_flag = True
+        # config_speed = self.config
+        waittime = 2
+        rule_count =0
+        # 等待命令标志位
+        send_check=True
+        # 可以开始测试标志位
+        self.serial_test_begin_flag = False
+        begin_time = time.time()
+        last_mode = None
+        # 读取规则文件
+        bd_pathname = self.comboBox_turntable_path.currentText()
+        if not bd_pathname in self.list_notpath:
+            bd_rulename = './{}/{}/{}.txt'.format('标定规则',bd_pathname,self.comboBox_turntable_rule.currentText())
+        else:
+            bd_rulename = './{}/{}.txt'.format('标定规则',self.comboBox_turntable_rule.currentText())
+        try:
+            rule_file = pd.read_csv(bd_rulename,header=None,skiprows=2,encoding='gb2312',sep='\\s+')
+        except:
+            rule_file = pd.read_csv(bd_rulename,header=None,skiprows=2,encoding='utf-8',sep='\\s+')
+        # print(rule_file)
+        com_port = self.comboBox_turntable_com.currentText()
+        turntable_serial = False
+        for i in range(5):
+            try:
+                turntable_serial = serial.Serial(com_port, 115200, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE)
+                break
+            except Exception as e:
+                time.sleep(1)
+        if not turntable_serial:
+            self.debug_list_1.append('{} 重复开启转台串口错误:{}'.format(self.normal_time,e))
+            return False
+                
+        i_status = ''
+        o_status = ''
+
+        # 创建保存log文件夹
+        now = datetime.now()
+        file_path = './测试数据/{}{}/{}/'.format(int2str(now.year),int2str(now.month),int2str(now.day))
+        commands = b''
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        # print('转台开启')
+        turntable = Turntable_class()
+        while (rule_count<len(rule_file)) & self.plan_threading_flag:
+            time.sleep(0.5)
+            try:
+                wait = turntable_serial.in_waiting
+                if wait>52:
+                    last_commands = turntable_serial.read(wait)
+                    commands+=last_commands
+                    rec_tt_out_count = 0
+                else:
+                    rec_tt_out_count+=1
+                    if rec_tt_out_count>20:
+                        if out_time_show_flag:
+                            out_time_show_flag = False
+                            self.show_message_automatic_list.append('{} 转台接收已经超时'.format(self.normal_time))
+                            self.debug_list_1.append('{} 转台接收已经超时'.format(self.normal_time))
+                        else:
+                            rec_tt_out_count -= 120+20
+                            self.debug_list_1.append('{} 转台接收已经超时'.format(self.normal_time))
+
+                if commands.startswith(b'\xaa\xaa') & (len(commands)>=52):
+                    decode_hex = commands[:52]
+                    commands = commands[52:]
+                    decode_commands = struct.unpack('<HHHIHHiiHiiHiixxxxxxxxxx',decode_hex)
+                    decode_commands = list(decode_commands)
+                    decode_commands[6]/=1e4
+                    decode_commands[7]/=1e4
+                    decode_commands[9]/=1e4
+                    decode_commands[10]/=1e4
+                    i_status = conver_turntable_status(decode_commands[5])
+                    o_status = conver_turntable_status(decode_commands[8])
+                    turntable_message = '{} 转台解算成功:{}\n\t{}\n\t{}'.format(self.normal_time,decode_commands,i_status,o_status)
+                    # self.debug_list_1.append(turntable_message) 
+                    if self.save_turntable_status:
+                        try:
+                            with open(file_path+'运行记录_转台信息.txt','a+') as f:
+                                f.write(turntable_message)
+                        except Exception as e:
+                            self.debug_list_4.append('{} 写入文件失败 {}'.format(self.normal_time,e))
+                    self.inside_location = decode_commands[6]
+                    self.inside_speed = decode_commands[7]
+                    self.outside_location = decode_commands[9]
+                    self.outside_speed = decode_commands[10]
+                    self.turntable_i_status = i_status    # 转台运动状态
+                    self.turntable_o_status = o_status    # 转台运动状态
+            except:
+                self.debug_list_2.append('{} 解算失败:{} {}'.format(self.normal_time,decode_hex.hex(),e))
+            # '''
+            i=rule_count
+            if send_check:
+                # print(rule_file[:][i])
+                send_check=False
+                try:
+                    bd_count = int(rule_file[0][i])
+                    self.bd_count = bd_count
+                    inside_location=float(rule_file[1][i])
+                    outside_location=float(rule_file[2][i])
+                    inside_speed=float(rule_file[3][i])
+                    outside_speed=float(rule_file[4][i])
+                    test_time = int(rule_file[5][i])
+                except Exception as e:
+                    self.debug_list_1.append('{} 读取转台转台标定文件错误：{}'.format(self.normal_time,bd_rulename))
+                last_mode = 'spd'
+                if (inside_speed==0)&(outside_speed==0):
+                    # 转台固定 方位模式
+                    turntable.inside_location(inside_location,self.config_in_spd,self.config_in_acc)
+                    turntable.outside_location(outside_location,self.config_out_spd,self.config_out_acc)
+                    last_mode = 'loc'
+                elif (outside_speed==0):
+                    # 内框旋转模式
+                    turntable.inside_speed(inside_speed,self.config_in_acc)
+                    turntable.outside_location(outside_location,self.config_out_spd,self.config_out_acc)
+                elif (inside_speed==0):
+                    # 外框旋转模式
+                    turntable.inside_location(inside_location,self.config_in_spd,self.config_in_acc)
+                    turntable.outside_speed(outside_speed,self.config_out_acc)
+                else:
+                    # 内外旋转
+                    turntable.inside_speed(inside_speed,self.config_in_acc)
+                    turntable.outside_speed(outside_location,self.config_out_acc)
+                    
+                self.bd_test_flag = '{}[{}_{}_{}_{}]'.format(last_mode,inside_location,outside_location,inside_speed,outside_speed)
+                self.show_message_dis1_list.append('{} {}:{}'.format(self.normal_time,bd_count,self.bd_test_flag))
+                message = turntable.get_command()
+                turntable_serial.write(bytes.fromhex(message))
+                # 转动等待时间
+                waittime = test_time+1
+            # 转台到位开始收数判断
+            if (time.time()-begin_time>self.config_hold_time)& (not self.serial_test_begin_flag):
+                if self.config_turntable_check_status:
+                    turntable_readt_list = [
+                        abs(inside_location-decode_commands[6])<1,
+                        abs(inside_speed-decode_commands[7])<1,
+                        abs(outside_location-decode_commands[8])<1,
+                        abs(outside_speed-decode_commands[9])<1,
+                    ]
+                    if (False not in turntable_readt_list) & ('到位' in i_status) &('到位' in o_status):
+                        # self.debug_list_1.append('{} 转台到位'.format(self.normal_time))
+                        self.serial_test_begin_flag = True
+                        self.turntable_ready = True
+                        self.show_message_dis2_list.append('{} 开始陀螺收数'.format(self.normal_time))
+                        self.turntable_will_turn = False
+                        self.bd_calib_flag = 0
+                    else:
+                        if ('到位' in i_status) &('到位' in o_status):
+                            self.debug_list_1.append('{} 转台提示到位但与指令不符，尝试重新发送指令 {}'.format(self.normal_time,self.bd_test_flag))
+                            turntable_serial.write(bytes.fromhex(message))
+                            time.sleep(0.5)
+                        else:
+                            self.debug_list_1.append('{} 转台未到位 继续等待中...'.format(self.normal_time))
+                            time.sleep(1)
+                else:
+                    if ('到位' in i_status) &('到位' in o_status):
+                        # self.debug_list_1.append('{} 转台到位'.format(self.normal_time))
+                        self.serial_test_begin_flag = True
+                        self.turntable_ready = True
+                        self.show_message_dis2_list.append('{} 转台已稳定 开始收数中...'.format(self.normal_time))
+                        self.turntable_will_turn = False
+                        self.bd_calib_flag = 0
+                    else:
+                        self.serial_test_begin_flag = True
+                        self.turntable_ready = True
+                        self.show_message_dis2_list.append('{} ！转台未到位！ 开始收数中...'.format(self.normal_time))
+                        self.turntable_will_turn = False
+                        self.bd_calib_flag = 0
+            # 即将转位标志位 用于calib生成
+            if (time.time()-begin_time>waittime+self.config_hold_time-1)&(rule_count<len(rule_file)-1):
+                self.turntable_will_turn = True
+                self.bd_calib_flag = 1
+            if time.time()-begin_time>waittime+self.config_hold_time:
+                # print('一组测试结束')
+                # 刹车指令
+                if self.config_turntable_check_status:
+                    message = 'aaaa555538000100800000000000000000000000008000000000000000000000000000000000000000000000000000ff000000ffffffff34'
+                    if ('停止' in i_status) &('停止' in o_status):
+                        self.show_message_dis2_list.append('{} 刹车已稳定 进行下一步...'.format(self.normal_time))
+                        begin_time = time.time()
+                        send_check = True
+                        rule_count+=1
+                    elif (time.time()-begin_time ) < (waittime+ 2*self.config_hold_time):
+                        self.show_message_dis2_list.append('{} 测试已结束 自动刹车中...'.format(self.normal_time))
+                        turntable_serial.write(bytes.fromhex(message))
+                        time.sleep(1)
+                        turntable_serial.write(bytes.fromhex(message))
+                        time.sleep(self.config_hold_time)
+                    else:
+                        self.show_message_dis2_list.append('{} 刹车未稳定 继续刹车中...'.format(self.normal_time))
+                        turntable_serial.write(bytes.fromhex(message))
+                        time.sleep(1)
+                        
+
+                #     try:
+                #         commands = turntable_serial.readlines()
+                #         decode_commands = struct.unpack('>HHHIHHiiHiiHiixxxxxxxxxx',commands)
+                #         self.show_message_dis1_list.append('解算成功:{}'.format(decode_commands))
+                #     except:
+                #         self.show_message_dis1_list.append('解算失败:{}'.format(commands))
+                #         continue
+                #     self.show_message_dis1_list.append(str(decode_commands))
+                #     in_status = bin(decode_commands[5])[2:].rjust(16,'0')[6]
+                #     ou_status = bin(decode_commands[8])[2:].rjust(16,'0')[6]
+                #     self.show_message_dis1_list.append('内环状态:{} 外环状态:{}'.format(in_status,ou_status))
+                #     if (str(in_status)=='1')&(str(ou_status)=='1'):
+                #         time.sleep(1)
+                #         begin_time = time.time()
+                #         send_check = True
+                #         rule_count+=1
+                #     else:
+                #         continue
+                    
+                else:
+                    self.show_message_dis2_list.append('{} 测试已结束 自动刹车中...'.format(self.normal_time))
+                    self.serial_test_begin_flag = False
+                    message = 'aaaa555538000100800000000000000000000000008000000000000000000000000000000000000000000000000000ff000000ffffffff34'
+                    turntable_serial.write(bytes.fromhex(message))
+                    time.sleep(1)
+                    turntable_serial.write(bytes.fromhex(message))
+                    time.sleep(self.config_hold_time+1)
+                    begin_time = time.time()
+                    send_check = True
+                    rule_count+=1
+        # 转台停止 标定结束 
+        turntable_serial.close()
+        self.threading_test_flag = False
+         
+
+    def begin_test_3xbd(self):
+        self.show_message_dis1_list.append('{} 开始三轴标定'.format(self.normal_time))
+        self.struct_turntable3x.sendMsg_stp()
+        
+        bd_pathname = self.comboBox_turntable3x_path.currentText()
+        bd_filename = self.comboBox_turntable3x_rule.currentText()
+        if not bd_pathname in self.list_notpath:
+            bd_rulename = './{}/{}/{}.txt'.format('三轴规则',bd_pathname,bd_filename)
+        else:
+            bd_rulename = './{}/{}.txt'.format('三轴规则',bd_filename)
+        try:
+            rule_file = pd.read_csv(bd_rulename,header=None,skiprows=2,encoding='gb2312',sep='\\s+')
+        except:
+            rule_file = pd.read_csv(bd_rulename,header=None,skiprows=2,encoding='utf-8',sep='\\s+')
+        
+        now = datetime.now()
+        file_path = './测试数据/{}{}/{}/'.format(int2str(now.year),int2str(now.month),int2str(now.day))
+        commands = b''
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        
+        # 标定规则计数
+        rule_count = 0
+        # 等待命令标志位
+        send_check=True
+        # 可以开始测试标志位
+        self.serial_test_begin_flag = False
+        # 等待到位时间
+        # wait_time = self.config_hold_time
+        wait_time = 10
+        test_time = 5
+        # 转台位置判断范围
+        turntable3x_locReadySts = 0.01
+        turntable3x_spdReadySts = 0.01
+        # 每次名命令开始时间
+        begin_time = time.time()
+        # 重新发送指令
+        retry_maxCount = 10
+        retry_count = 0
+        try:
+            while (rule_count<len(rule_file)) & self.plan_threading_flag:
+                time.sleep(0.5)
+                
+                i = rule_count
+                # 判断发送转动指令
+                if send_check:
+                    send_check=False
+                    list_bd_rule = list(rule_file.iloc[i,1:7])
+                    print('{} 转台指令:{}'.format(self.normal_time,list_bd_rule))
+                    test_time = int(rule_file.iloc[i,7])
+                    stop_flag = False
+                    for j in range(3):
+                        if rule_file.iloc[i,j+4]!=0:
+                            stop_flag = True
+                    if stop_flag:
+                        self.struct_turntable3x.sendMsg_stp()
+                        time.sleep(3)
+                        print('发送停止指令')
+                    self.events_devide.turntable3x_set_input(list_bd_rule)
+                    self.events_devide.clickEvent_turntable3x_turn()
+                    begin_time = time.time()
+                # 判断是否到位并开始测试
+                if ((time.time()-begin_time)>wait_time) & (not self.serial_test_begin_flag):
+                    print('{} 判断转台到位'.format(self.normal_time))
+                    turntable3x_stsReady = (False not in self.struct_turntable3x.list_recReadySts)
+                    list_ready = []
+                    list_bd_rule = list(rule_file.iloc[i,1:7])
+                    test_time = int(rule_file.iloc[i,7])
+                    for i in range(3):
+                        # 位置模式判断
+                        if float(list_bd_rule[i+3])==0:
+                            turntable3x_onReady = angular_distance(
+                                list_bd_rule[i],
+                                self.struct_turntable3x.list_recLocation[i]
+                                )<turntable3x_locReadySts
+                        # 速度模式判断
+                        else:
+                            turntable3x_onReady = angular_distance(
+                                list_bd_rule[i+3],
+                                self.struct_turntable3x.list_recSpeed[i]
+                                )<turntable3x_spdReadySts
+                        list_ready.append(turntable3x_onReady)
+                    
+                    # if ((False not in list_ready)&(turntable3x_stsReady)) :
+                    if (False not in list_ready) :
+                        print('{} 转台到位'.format(self.normal_time))
+                        self.serial_test_begin_flag = True
+                        self.turntable_ready = True
+                        retry_count = 0
+                        begin_time = time.time() 
+                    elif retry_count>retry_maxCount:
+                        print('{} 重试次数超限'.format(self.normal_time))
+                        self.serial_test_begin_flag = True
+                        self.turntable_ready = True
+                        retry_count = 0
+                        begin_time = time.time()
+                    else:
+                        print('{} 等待重试'.format(self.normal_time))
+                        retry_count+=1
+                        begin_time = time.time()
+                        self.events_devide.turntable3x_set_input(list_bd_rule)
+                        self.events_devide.clickEvent_turntable3x_turn()
+                # 判断是否测试结束
+                if ((time.time()-begin_time)>(test_time+1))&self.serial_test_begin_flag:
+                    print('{} 测试结束'.format(self.normal_time))
+                    self.serial_test_begin_flag = False
+                    begin_time = time.time()
+                    send_check = True
+                    rule_count+=1
+        except Exception as  e:
+            print('转动错误:{}'.format(e))
+        self.struct_turntable3x.sendMsg_stp()
+        print('测试结束')
+        # self.events_devide.clickEvent_turntable3x_close()
+        # self.pushButton_turntable3x_close.click()
+        self.threading_test_flag = False
+                    
+                
+            
+            
+            
+        
+# 根据规则解算数据 - 旧
+def decode_hex_frame(frame,rules_format,rules_head,rules_saveck,rules_paras):
+    bit_data = []
+    for i in range(len(rules_format)):
+        if str(rules_saveck[i])=='1':
+            bit_frame_length = struct.calcsize(rules_head[i]+rules_format[i])
+            before_frame_length = struct.calcsize('>'+''.join(rules_format[:i]))
+            frame_data = frame[before_frame_length:before_frame_length+bit_frame_length]
+            if str(rules_paras[i])=='1':
+                decode_frame_data = struct.unpack(rules_head[i]+rules_format[i],frame_data)[0]
+            else:
+                decode_frame_data = struct.unpack(rules_head[i]+rules_format[i],frame_data)[0] *float(rules_paras[i])
+                
+            bit_data.append(decode_frame_data)
+        else:
+            continue
+    return bit_data
+# 根据转台状态字返回对应内容 待更新
+def conver_turntable_status(hex_data):
+    status_list1 = ['位置','速率','摇摆','阶跃','仿真','方波','三角','梯形','找零','停车']
+    status_list2 = ['停止','运动']
+    status_list3 = ['未闭','闭环']
+    status_list4 = ['未到','到位']
+    status_list5 = ['正常','异常']
+    status_list6 = ['锁紧','跟随','超速','驱动','限位','使能']
+    status_list7 = ['远控','未控']
+    status_list8 = ['校验','未校']
+    status_list = [status_list1,status_list2,status_list3,status_list4,status_list5,status_list6,status_list7,status_list8]
+
+    try:
+        bin_data = format(hex_data,'016b')
+        result_list = []
+        for i in range(8):
+            if i==0:
+                beg = -4
+                end = None
+            else:
+                beg = -4-i
+                end = beg+1
+            # print('status_list%s,'%(i+1),end='')
+            try:
+                counts = int(bin_data[beg:end],2)
+                # print(status_list[i][counts])
+                result_list.append(status_list[i][counts])
+            except Exception as e:
+                result_list.append('未知')
+                # self.debug_list_1.append('{} 解算转台状态错误{} {}'.format(self.normal_time,hex_data,e))
+        
+        return ' '.join(result_list)
+
+    except Exception as e:
+        # self.debug_list_1.append('{} conver_turntable_status函数错误{} {}'.format(self.normal_time,hex_data,e))
+        return 'conver_error: {} {}'.format(hex_data,'未知')
+def lat_lon2str(float_data):
+    float_data = float(float_data)
+    int_data = int(float_data)
+    frac_data = float_data - int_data
+    return (int_data+frac_data*0.6)*100
+def sate2location(sate_data):
+    try:
+        sate_data = float(sate_data)
+        int_date = sate_data//100
+        float_date = (sate_data-int_date*100)/60
+        return int_date+float_date
+    except:
+        return 0
+def try_set_text(obj,types,default=1):
+    try: return types(obj)
+    except: return types(default)
+def try_get_text(obj,types,default=1):
+    try: return types(obj.text())
+    except: return types(default)
+def int2str(string,rjust=2,strjust='0'):
+    return str(string).rjust(rjust,strjust)
+def hex2int(strings):
+    return int(strings,16) if bin(int(strings,16))[2:].rjust(len(strings)*4,'0')[0]=='0' else int(strings,16)-int(len(strings)*'F',16)-1
+def int2hex(string,rjust=2):
+    return hex(string)[2:].rjust(rjust,'0')[-rjust:].upper() if int(string)>0 else int2hex(int('F'*rjust,16)+int(string)+1,rjust)
+def reverse(string):
+    return ''.join([string[len(string)-i*2-2:len(string)-i*2] for i in range(len(string)//2)])
+def hexcut2list(string):
+    return [string[i*2:i*2+2] for i in range(len(string)//2)]
+def struct_unpack_int3(string):
+    return int(struct.unpack('<i',b'\x00'+string)[0]/256)
+# 校验位中规则转换
+def check2serial(data):
+    import serial
+    try: return [serial.PARITY_NONE,serial.PARITY_EVEN,serial.PARITY_ODD][['无校验','偶校验','奇校验'].index(str(data).lower())]
+    except: return serial.PARITY_NONE
+# 停止位中规则
+def stop2chinese(data):
+    import serial
+    try: return [serial.STOPBITS_ONE,serial.STOPBITS_TWO][['stop1','stop2'].index(str(data).lower())]
+    except: return serial.STOPBITS_ONE
+# 校验位中英转换
+def check2chinese(data):
+    try: return ['无校验','偶校验','奇校验'][['none','even','odd'].index(str(data).lower())]
+    except: return '无校验'
+def chinese2check(data):
+    try: return [serial.PARITY_NONE,serial.PARITY_EVEN,serial.PARITY_ODD][['无校验','偶校验','奇校验'].index(str(data).lower())]
+    except: return serial.PARITY_NONE
+# 规则文件中英转换
+def rulename2chinese(data):
+    try: return ['解算规则','标定规则','装订规则','自动规则'][['protocal','turntable','binding','automatic'].index(str(data).lower())]
+    except: return '错误名称'
+# 测试模式中英转换
+def testmode2chinese(data):
+    try: return ['惯导测试','转台标定','自动测试'][['only_test','turntable_test','automatic_test'].index(str(data).lower())]
+    except: return '错误名称'
+# 计算协议长度
+def calculate_frame_length(rules_format_list):
+    before_frame_length = 0
+    for rules_format in rules_format_list:
+        for i in rules_format:
+            if (i.lower()=='y'):
+                before_frame_length += 3
+            else:
+                before_frame_length += struct.calcsize('>'+i)
+    return before_frame_length
+def calculate_checksum(data):
+    checksum = 0
+    for byte in data:
+        checksum += byte
+    return checksum & 0xFF 
+def calculate_xorsum(data):
+    checksum = 0
+    for byte in data:
+        checksum ^= byte
+    return checksum & 0xFF 
+# 按规则列表转换十六进制原始数
+def decode_hex_frame_list(frame,decode_rule_list,decode_save_list,decode_para_list,decode_sort_list,decode_edia_list,config_sum_check_list=None):
+    decode_data_list = []
+    decode_struct_tolegth = 0
+    try:
+        if config_sum_check_list is not None:
+            all_check = 0
+            for config_sum_check in config_sum_check_list:
+                check_frame = frame[config_sum_check[1]:config_sum_check[2]]
+                checks = sum(check_frame)&0xFF
+                if checks==frame[config_sum_check[0]]:
+                    all_check += 1
+                else:
+                    all_check += 0
+            if all_check==len(config_sum_check_list):
+                sum_check_result = 1
+            else:
+                sum_check_result = 0
+                # print('校验失败:{} {} \nlist:{}'.format(checks,frame[config_sum_check[0]],check_frame.hex()))
+        else:
+            sum_check_result = 0
+    except Exception as e:
+        sum_check_result = 0
+        print('使用校验失败:{}'.format(e))
+    for i in range(len(decode_edia_list)):
+        decode_bit_list = []
+        decode_struct = decode_edia_list[i]+''.join(decode_rule_list[i])
+        decode_struct_length =struct.calcsize(decode_struct)
+        # decode_tuple = list(struct.unpack(decode_struct,frame[decode_struct_tolegth:decode_struct_length]))
+        try:
+            decode_tuple = list(struct.unpack(decode_struct,frame[decode_struct_tolegth:decode_struct_tolegth+decode_struct_length]))
+            # if (sum_check_result==1)&('6699' not in frame[decode_struct_tolegth:decode_struct_tolegth+decode_struct_length].hex()):
+            #     for errors in decode_tuple:
+            #         if float(errors)>1e6:
+            #             print(errors)
+            #             print(frame[decode_struct_tolegth:decode_struct_tolegth+decode_struct_length].hex())
+            #             print(decode_struct)
+            # if decode_tuple[8]>477218588:
+            #     print('errordecode:{}'.format(frame.hex()))
+        except Exception as e:
+            print('decode_struct:{}'.format(decode_struct))
+            print('decode_struct_length:{}'.format(decode_struct_length))
+            print('decode_hex_frame_list')
+            print(decode_struct)
+            print(frame.hex())
+            print('decode_struct_tolegth:{}  decode_struct_length:{}'.format(decode_struct_tolegth,decode_struct_length))
+            print(frame[decode_struct_tolegth:decode_struct_length])
+        decode_struct_tolegth += decode_struct_length
+        for j in range(len(decode_tuple)):
+            try:
+                decode_sort_num = decode_sort_list[i].index(str(j))
+            except:
+                print('decode_hex_frame_list:排序序号超出列表长度')
+                print('decode_tuple:{}'.format(decode_tuple))
+                print('decode_sort_list[i]:{} index:{}'.format(decode_sort_list[i],j))
+                continue
+            if decode_save_list[i][decode_sort_num]=='1':
+                decode_para_num = decode_para_list[i][decode_sort_num]
+                # if (decode_para_num=='1')|(decode_para_num==1)|(round(float(decode_para_num),2)==1):
+                if round(float(decode_para_num),12)==1:
+                    decode_bit_list.append(decode_tuple[decode_sort_num])
+                else:
+                    decode_bit_list.append(decode_tuple[decode_sort_num]*float(decode_para_num))
+        decode_data_list+=decode_bit_list
+    return decode_data_list,sum_check_result
+def try_split_power_command(strings):
+    if ('on' in strings)|('off' in strings):
+        if ':' in strings:
+            try: return int(strings.split(':')[1])
+            except: return 'all'
+        elif '：' in strings:
+            try: return int(strings.split('：')[1])
+            except: return 'all'
+        else:
+            return 'all'
+    else:
+        return 'all'
+def GPGGA2loc(strings):
+    defalut_GGA = [0]*5
+    try:
+        strings = strings.split(',')
+        if len(strings)<6: return 0
+        if strings[2]=='' or strings[4]=='' or strings[6]=='' or strings[7]=='':
+            return defalut_GGA
+        else:
+            lat = sate2location(strings[2])
+            lon = sate2location(strings[4])
+            sat = strings[7]
+            num = strings[8]
+            try:
+                high = str(float(strings[9])+float(strings[11]))
+            except:
+                high = '0.0'
+            return [lat,lon,sat,num,high]
+    except Exception as e:
+        print('GPGGA2loc:{}'.format(e))
+        return defalut_GGA
+def KSXT2spd(strings):
+    defalut_KSXT = [0]*7
+    try:
+        strings = strings.split(',')
+        if len(strings)<20: return defalut_KSXT
+        if strings[1]=='':
+            return defalut_KSXT
+        else:
+            time = float(strings[1])
+            lon = float(strings[2])
+            lat = float(strings[3])
+            high = float(strings[4])
+            east = float(strings[17])
+            north = float(strings[18])
+            up = float(strings[19])
+            return [time,lon,lat,high,east,north,up]
+    except Exception as e:
+        # print('KSXT2spd:{}'.format(e))
+        return defalut_KSXT
+
+
+class Turntable_class:
+    def __init__(self):
+        # 转台通讯协议数据帧格式
+        self.header='AAAA5555'
+        self.command_length = '3800'
+        self.command_count = '0100'
+        self.inside_command='80'
+        self.inside_para1 = '00000000'
+        self.inside_para2 = '00000000'
+        self.inside_para3 = '00000000'
+        self.outside_command='00'
+        self.outside_para1 = '00000000'
+        self.outside_para2 = '00000000'
+        self.outside_para3 = '00000000'
+        self.otherside_command='00'
+        self.otherside_para1 = '00000000'
+        self.otherside_para2 = '00000000'
+        self.otherside_para3 = '00000000'
+        self.thermostat_command = 'FF'
+        self.thermostat_speed = '00'
+        self.thermostat_target= '0000'
+        self.spare_command = 'FFFFFFFF'
+        self.check_command = '00'
+        self.all_hex = ''
+        self.split_hex = ''
+    # 组合各数据帧 计算校验并返回总指令
+    def get_command(self):
+        all_hex = ''.join([self.command_length,self.command_count,self.inside_command,self.inside_para1,self.inside_para2,self.inside_para3,self.outside_command,self.outside_para1,self.outside_para2,self.outside_para3,self.otherside_command,self.otherside_para1,self.otherside_para2,self.otherside_para3,self.thermostat_command,self.thermostat_speed,self.thermostat_target,self.spare_command])
+        # self.command_count = int2hex(int(reverse(self.command_count),16)+1,4)
+        # print(self.command_count)
+        split_hex = ''
+        check = 0
+        for i in range(len(all_hex)//2):
+            bit = all_hex[i*2:i*2+2]
+            split_hex+=bit+' '
+            check+=int(bit,16)
+        check = int2hex(check)
+        all_hex += check
+        split_hex += check
+        self.check_command = check
+        self.all_hex = self.header+all_hex
+        self.split_hex = 'AA AA 55 55 '+split_hex
+        return self.all_hex
+    # 内框置零
+    def reset_inside(self):
+        self.inside_command='00'
+        self.inside_para1 = '00000000'
+        self.inside_para2 = '00000000'
+        self.inside_para3 = '00000000'
+        return self.get_command()
+    # 外框置零
+    def reset_outside(self):
+        self.outside_command='00'
+        self.outside_para1 = '00000000'
+        self.outside_para2 = '00000000'
+        self.outside_para3 = '00000000'
+        return self.get_command()
+    # 内框归零
+    def reset_inside(self):
+        self.inside_command = '81'
+        self.inside_para1 = reverse(int2hex(0*10000,8))
+        self.inside_para2 = reverse(int2hex(10*10000,8))
+        self.inside_para3 = reverse(int2hex(10*100,8))
+        return self.get_command()
+    # 外框归零
+    def reset_outside(self):
+        self.outside_command = '81'
+        self.outside_para1 = reverse(int2hex(0*10000,8))
+        self.outside_para2 = reverse(int2hex(10*10000,8))
+        self.outside_para3 = reverse(int2hex(10*100,8))
+        return self.get_command()
+    # 内框设置位置
+    def inside_location(self,location=0,speed=10,acceleration=10):
+        self.inside_command = '81'
+        self.inside_para1 = reverse(int2hex(int(location*10000),8))
+        self.inside_para2 = reverse(int2hex(int(speed*10000),8))
+        self.inside_para3 = reverse(int2hex(int(acceleration*100),8))
+        return self.get_command()
+    # 内框设置速率
+    def inside_speed(self,speed=10,acceleration=10):
+        self.inside_command = '82'
+        self.inside_para1 = reverse(int2hex(int(speed*10000),8))
+        self.inside_para2 = reverse(int2hex(int(acceleration*100),8))
+        self.inside_para3 = '00000000'
+        return self.get_command()
+    # 外框设置位置
+
+    def outside_location(self,location=0,speed=10,acceleration=10):
+        self.outside_command = '81'
+        self.outside_para1 = reverse(int2hex(int(location*10000),8))
+        self.outside_para2 = reverse(int2hex(int(speed*10000),8))
+        self.outside_para3 = reverse(int2hex(int(acceleration*100),8))
+        return self.get_command()
+    # 外框设置速率
+    def outside_speed(self,speed=10,acceleration=10):
+        self.outside_command = '82'
+        self.outside_para1 = reverse(int2hex(int(speed*10000),8))
+        self.outside_para2 = reverse(int2hex(int(acceleration*100),8))
+        self.outside_para3 = '00000000'
+        return self.get_command()
+
+        
+        
+if __name__ == '__main__':
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    mainWindow = MainWindow()
+    mainWindow.show()
+    sys.exit(app.exec_())
+    print('fun end')
