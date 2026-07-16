@@ -23,8 +23,6 @@ class MainWindowConstants:
         
         # 初始化结构体 发送卫导数据
         self.init_send_struct()
-        # 初始化结构体 发送卫导数据
-        self.init_send_struct()
         
         # # 初始化结构体 装订信息缓存
         # self.init_send_cache()

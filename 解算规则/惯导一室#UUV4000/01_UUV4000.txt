@@ -1,0 +1,38 @@
+#	是否保存	系数	标题	排序	注释
+#	baund	460800			
+#	check	none	(none/odd/even)		
+#	header	FE5C			
+#	receive_hz	200			
+#	rulehead	<			
+B	0	1	0xFE	N	
+B	0	1	0x5C	N	
+B	1	1	帧序号	N	
+B	1	1	系统ID	N	
+B	1	1	组件ID	N	
+B	1	1	消息ID	N	
+H	1	1	故障码	N	
+H	1	1	状态字	N	
+f	1	3600	机体前角速度	N	
+f	1	3600	机体上角速度	N	
+f	1	3600	机体右角速度	N	
+f	1	1	机体前加速度	N	
+f	1	1	机体上加速度	N	
+f	1	1	机体右加速度	N	
+f	1	1	组合滚转角	N	
+f	1	1	组合俯仰角	N	
+f	1	1	组合航向角	N	
+f	1	1	组合北向速度	N	
+f	1	1	组合天向速度	N	
+f	1	1	组合东向速度	N	
+d	1	1	组合经度	N	
+d	1	1	组合纬度	N	
+f	1	1	组合深度	N	
+f	1	1	四元数1	N	
+f	1	1	四元数2	N	
+f	1	1	四元数3	N	
+f	1	1	四元数4	N	
+H	1	10	气压值	N	
+B	1	1	DVL有效	N	
+B	1	1	GPS有效	N	
+B	0	1	校验位	N	
+B	0	1	校验位	N	

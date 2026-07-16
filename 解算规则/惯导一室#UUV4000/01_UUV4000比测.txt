@@ -1,0 +1,61 @@
+#	是否保存	系数	标题	排序	注释
+#	baund	460800			
+#	check	none	(none/odd/even)		
+#	header	FE5C			
+#	receive_hz	200			
+#	rulehead	<			
+B	0	1	0xFE	N	
+B	0	1	0x5C	N	
+I	1	0.005	时间		N		
+H	1	1	故障码	N	
+H	1	1	状态字	N	
+f	1	1	机体前角速度	N	
+f	1	1	机体上角速度	N	
+f	1	1	机体右角速度	N	
+f	1	1	机体前加速度	N	
+f	1	1	机体上加速度	N	
+f	1	1	机体右加速度	N	
+f	1	1	组合滚转角	N	
+f	1	1	组合俯仰角	N	
+f	1	1	组合航向角	N	
+f	1	1	组合北向速度	N	
+f	1	1	组合天向速度	N	
+f	1	1	组合东向速度	N	
+d	1	1	组合经度	N	
+d	1	1	组合纬度	N	
+f	1	1	组合深度	N	
+h	1	1	ba0	N
+h	1	1	ba1	N
+h	1	1	×9	N
+h	1	1	×10	N
+h	1	1	×11	N
+h	1	1e-4	×0	N
+h	1	1e-4	×1	N
+h	1	1e-4	×2	N
+h	1	1e-4	×13	N
+h	1	1e-4	bg1	N
+f	1	1	外框角度	N	
+f	1	1	外框角速率	N
+B	1	1	方向		N
+B	1	1	状态		N	
+f	1	1	内框角度	N	
+f	1	1	内框角速率	N
+B	1	1	方向		N
+B	1	1	状态		N
+h	1	0.0625	陀螺X温度	N
+h	1	0.0625	陀螺Y温度	N
+h	1	0.0625	陀螺Z温度	N
+h	1	0.0025	加表X温度	N
+h	1	0.0025	加表Y温度	N
+h	1	0.0025	加表Z温度	N
+i	1	1e-7	卫导lon	N
+i	1	1e-7	卫导lat	N
+i	1	1e-2	卫导h	N
+h	1	0.01	卫导east	N
+h	1	0.01	卫导north	N
+h	1	0.01	卫导up	N
+B	1	1	卫星数	N
+H	1	1	GPS周	N
+d	1	1	GPS周秒	N
+B	1	1	校验位	N	
+B	0	1	校验位	N	

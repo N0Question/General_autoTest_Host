@@ -1,0 +1,14 @@
+#	是否保存	系数	标题	排序	注释
+#	check	none	(none/odd/even		
+#	header	55	AA		
+#	receive_hz	200			
+#	special_flag	JG	特殊标志位		
+#	rulehead	>			
+B	1	1	timestamp	N	
+B	1	1	latitude_deg	N	
+B	1	1	longitude_deg	N	
+B	1	1	heading	N	
+H	1	1	utc_sec	N	
+h	1	1	update_flag	N	
+I	1	1	status	N	
+f	1	1	rssi	N	

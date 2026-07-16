@@ -1,7 +1,7 @@
 import os
 import struct 
 import time
-# 线程事件
+# 绾跨▼浜嬩欢
 
 class MainWindowThread:
     def __init__(self,mainWindow):

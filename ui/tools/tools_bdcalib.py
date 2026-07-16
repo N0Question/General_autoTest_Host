@@ -3,17 +3,17 @@
 import os,re,datetime,shutil,threading#,debugpy
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt 
+# import matplotlib.pyplot as plt 
 from PyQt5.QtWidgets import QWidget, QFileDialog,QLineEdit, QListWidgetItem, QTableWidgetItem
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QSize,Qt,QTimer,QThread,pyqtSignal
-import matplotlib
-matplotlib.use("Agg")
-from matplotlib.pylab import mpl
-from matplotlib.ticker import ScalarFormatter
-from matplotlib.ticker import FuncFormatter
-mpl.rcParams['font.sans-serif'] = ['SimHei']
-mpl.rcParams['axes.unicode_minus'] = False
+# import matplotlib
+# matplotlib.use("Agg")
+# from matplotlib.pylab import mpl
+# from matplotlib.ticker import ScalarFormatter
+# from matplotlib.ticker import FuncFormatter
+# mpl.rcParams['font.sans-serif'] = ['SimHei']
+# mpl.rcParams['axes.unicode_minus'] = False
 def extract_number(filename):
     match = re.search(r'BD(\d+)#',filename)
     return int(match.group(1)) if match else float('inf')

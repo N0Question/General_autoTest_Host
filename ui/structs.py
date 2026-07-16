@@ -66,6 +66,12 @@ class struct_general_bind:
                 if 'crc32' == tar.lower():
                     self.struct_typeCheck = 'crc32'
                     self.struct_ruleCheck = try_return_checkRule(val)
+                if ('crc' in tar.lower()) & ('0x00' in tar.lower()):
+                    self.struct_typeCheck = 'crc_00'
+                    self.struct_ruleCheck = try_return_checkRule(val)
+                if ('crc' in tar.lower()) & ('0xff' in tar.lower()):
+                    self.struct_typeCheck = 'crc_ff'
+                    self.struct_ruleCheck = try_return_checkRule(val)
                 if ('crc_mcrf4' == tar.lower())|( ('crc' in tar.lower())&('mcrf4' in tar.lower()) ):
                     self.struct_typeCheck = 'crc_mcrf4'
                     self.struct_ruleCheck = try_return_checkRule(val)
@@ -103,13 +109,19 @@ class struct_general_bind:
 class struct_tab_setting:
     def __init__(self,mw,tab=1):
         self.tab = tab  
-        self.com = mw.findChild( QtWidgets.QComboBox,'combox_set_com_{}'.format(tab) )
-        self.baund = mw.findChild( QtWidgets.QComboBox,'combox_set_baund_{}'.format(tab) )
-        self.check = mw.findChild( QtWidgets.QComboBox,'comboBox_set_check_{}'.format(tab) )
-        self.stop = mw.findChild( QtWidgets.QComboBox,'comboBox_stopbit_{}'.format(tab) )
-        self.open = mw.findChild( QtWidgets.QPushButton,'pushButton_com_open_{}'.format(tab) )
-        self.name = mw.findChild( QtWidgets.QLineEdit,'lineEdit_file_names_{}'.format(tab) )
-        self.plan = mw.findChild( QtWidgets.QLineEdit,'lineEdit_plan_names_{}'.format(tab) )
+        def get_widget(widget_type, object_name):
+            widget = getattr(mw, object_name, None)
+            if widget is None:
+                widget = mw.findChild(widget_type, object_name)
+            return widget
+
+        self.com = get_widget(QtWidgets.QComboBox, 'combox_set_com_{}'.format(tab))
+        self.baund = get_widget(QtWidgets.QComboBox, 'combox_set_baund_{}'.format(tab))
+        self.check = get_widget(QtWidgets.QComboBox, 'comboBox_set_check_{}'.format(tab))
+        self.stop = get_widget(QtWidgets.QComboBox, 'comboBox_stopbit_{}'.format(tab))
+        self.open = get_widget(QtWidgets.QPushButton, 'pushButton_com_open_{}'.format(tab))
+        self.name = get_widget(QtWidgets.QLineEdit, 'lineEdit_file_names_{}'.format(tab))
+        self.plan = get_widget(QtWidgets.QLineEdit, 'lineEdit_plan_names_{}'.format(tab))
         self.rule = None
         
         self.flag_open = (self.open.text()=='开启')

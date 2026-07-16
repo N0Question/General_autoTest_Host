@@ -87,12 +87,7 @@ def calculate_crc16(data):
         tbl_idx = ((crc>>8)^byte)&0xff
         crc = ((crc<<8)^crc16_table[tbl_idx])&0xffff
     return crc
-def calculate_crc16_0x00(data):
-    crc = 0x0000
-    for byte in data:
-        tbl_idx = ((crc>>8)^byte)&0xff
-        crc = ((crc<<8)^crc16_table[tbl_idx])&0xffff
-    return crc
+
 
 def calculate_crc32(buffer: bytearray) -> int:
     """
@@ -118,14 +113,16 @@ def crc_1188a(data_add):
     return crc_value&0xffff
     # return crc_value
 
-def calculate_crc16_mcrf4xx(data: bytearray):
-    # print('执行 calculate_crc16_mcrf4xx:<{}>'.format(data.hex()))
-    crc = 0xFFFF  # unsigned short 初始值
-    for b in data:
-        tmp = b ^ (crc & 0xFF)
-        tmp &= 0xFFFF  # 保留 16 位
-        tmp ^= (tmp << 4) & 0xFFFF
-        tmp &= 0xFFFF  # 保留 16 位
-        crc = ((crc >> 8) ^ ((tmp << 8) & 0xFFFF) ^ ((tmp << 3) & 0xFFFF) ^ (tmp >> 4))
-        crc &= 0xFFFF  # 保留 16 位
+def calculate_crc16_mcrf4xx(data: bytearray) -> int:
+    """
+    计算给定二进制缓冲区的 CRC16-MCRF4XX 值
+    :param data: 二进制缓冲区（bytearray）
+    :return: 计算得到的 CRC16-MCRF4XX 值
+    """
+    crc = 0xFFFF
+    tmp = 0
+    for i in range(len(data)):
+        tmp = data[i]^(crc&0xFF)
+        tmp^=tmp<<4
+        crc = (crc>>8)^(tmp<<8)^(tmp<<3)^(tmp>>4)
     return crc & 0xFFFF

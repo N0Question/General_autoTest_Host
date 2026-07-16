@@ -1,6 +1,7 @@
 import configparser
 import uuid
 import hashlib
+from pathlib import Path
 from PyQt5.QtWidgets import QGroupBox,QApplication,QWidget,QComboBox
 class MainWindowInitFuncTest:
     def __init__(self,mainWindow):
@@ -41,26 +42,26 @@ class MainWindowInitFuncTest:
         for groupname in list_logic_groupbox:
             groupbox = self.mw.findChild(QGroupBox, groupname)
             if groupbox:
-                key = hashlib.md5((groupname + self.uuid + 'yhc2025hashkey').encode("utf-8")).hexdigest()
-                if (groupname in dict(self.vip_dict)) & (key == dict(self.vip_dict)[groupname]):
-                    groupbox.toggled.connect(self.clickEvent_childHidden)
-                    groupbox.setEnabled(True)
-                    groupbox.setChecked(False)
-                else:
-                    groupbox.setEnabled(False)
-                    groupbox.setChecked(False)
-                    self.groupbox_child_hidden(groupbox,False)
+                # key = hashlib.md5((groupname + self.uuid + 'yhc2025hashkey').encode("utf-8")).hexdigest()
+                # if (groupname in dict(self.vip_dict)) & (key == dict(self.vip_dict)[groupname]):
+                groupbox.toggled.connect(self.clickEvent_childHidden)
+                groupbox.setEnabled(True)
+                groupbox.setChecked(False)
+                # else:
+                #     groupbox.setEnabled(False)
+                #     groupbox.setChecked(False)
+                #     self.groupbox_child_hidden(groupbox,False)
             else:
                 print('clickLogic_bykey 没有找到界面ID:{}'.format(groupname))
         # 初始化所有combobox不可用
         for comboname in list_logic_combobox:
             combobox = self.mw.findChild(QComboBox, comboname)
             if combobox:
-                key = hashlib.md5((comboname + self.uuid + 'yhc2025hashkey').encode("utf-8")).hexdigest()
-                if (comboname in dict(self.vip_dict)) & (key == dict(self.vip_dict)[comboname]):
-                    combobox.setEnabled(True)
-                else:
-                    combobox.setEnabled(False)
+                # key = hashlib.md5((comboname + self.uuid + 'yhc2025hashkey').encode("utf-8")).hexdigest()
+                # if (comboname in dict(self.vip_dict)) & (key == dict(self.vip_dict)[comboname]):
+                combobox.setEnabled(True)
+                # else:
+                #     combobox.setEnabled(False)
             else:
                 print('clickLogic_bykey 没有找到界面ID:{}'.format(comboname))
             
@@ -93,7 +94,9 @@ class MainWindowInitFuncTest:
             '40:EC:99:76:18:CC',
             '40:EC:99:76:18:CF'
         ]
-        if flag_show_tab:   
+        flag_debug_path = './配置文件/debug_mode.ini'
+        flag_debug_mode = not Path(flag_debug_path).is_file()
+        if flag_show_tab and flag_debug_mode:   
             for tab in tabwidget_show_list1:
                 index = tabwidget1.indexOf(tab)
                 if index!=-1:

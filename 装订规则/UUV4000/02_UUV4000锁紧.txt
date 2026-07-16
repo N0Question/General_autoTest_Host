@@ -1,0 +1,23 @@
+#标题 设定
+#类型 系数 标题 默认
+#   autoHz     1
+#   crc_mcrf4  8,0:8
+#   button  对准数据包      FE 10 00 00 00 01 D1 57 90 66 2C 20 5D 40 C4 B1 2E 6E A3 DD 43 40 EC D5
+#   button  时间戳数据包    FE 08 00 00 00 02 80 EA 59 68 00 00 00 00 09 96
+#   button  DVL零速包      FE 10 00 00 00 03 40 64 6F 0A 00 00 00 00 00 00 00 00 00 00 00 00 6B 5E
+#   button  10m深度包      FE 08 00 00 00 04 40 64 6F 0A 00 20 41 75 0D
+#   button  GPS更新包      FE 10 00 00 00 05 D1 57 90 66 2C 20 5D 40 C4 B1 2E 6E A3 DD 43 40 C9 38
+#   button  千岛湖GPS更新  FE 10 00 00 00 05 0B 46 25 75 02 BE 5D 40 0F 0B B5 A6 79 8F 3D 40 52 FF
+#   button  --------      00 00
+#   button  --------      00 00
+#   button  --------      00 00
+#   rulehead  <
+B    1    帧头    0xFE
+B    1    长度    0x16
+B    1    序号    0
+B    1    系统ID    0
+B    1    组件ID    0
+B    1    消息ID    6
+d    1    经度      0
+d    1    纬度      0
+H    1    校验      0

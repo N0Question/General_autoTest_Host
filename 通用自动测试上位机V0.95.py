@@ -6,7 +6,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui,QtCore
 
 # 逻辑 事件 自定义等模块
-from Automated_testingV17 import Ui_MainWindow
+from Automated_testingV19 import Ui_MainWindow
 from funs.fun_checks import *
 from funs.fun_chy2 import *
 from funs.fun_serial import *
@@ -15,6 +15,7 @@ from funs.fun_locals import *
 import ui.events
 import ui.inits
 import ui.tools
+import ui.navs
 
 from ui.event import MainWindowEvent
 from ui.logic import MainWindowLogic
@@ -23,8 +24,10 @@ from ui.times import MainWindowTimes
 from ui.get_ui import MainWindowGetUI
 from ui.init_ui import MainWindowInit
 from ui.threads import MainWindowThread
+from ui.load_ini import MainWindowInitIni
 from ui.settings import MainWindowSetting
 from ui.constants import MainWindowConstants
+
 
 # 其他正常模块
 # import datetime
@@ -40,6 +43,54 @@ import struct
 import serial
 import time
 import os
+import re
+import sys
+
+
+def _find_runtime_root():
+    """Locate the project/resource root so relative paths keep working in packaged runs."""
+    candidate_dirs = []
+
+    if getattr(sys, 'frozen', False):
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+        candidate_dirs.extend([
+            exe_dir,
+            os.path.dirname(exe_dir),
+            os.path.dirname(os.path.dirname(exe_dir)),
+        ])
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidate_dirs.extend([
+        script_dir,
+        os.path.dirname(script_dir),
+    ])
+
+    seen = set()
+    for base_dir in candidate_dirs:
+        if not base_dir:
+            continue
+        normalized = os.path.normpath(base_dir)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        has_config = os.path.isdir(os.path.join(normalized, '配置文件'))
+        has_rules = os.path.isdir(os.path.join(normalized, '解算规则'))
+        if has_config and has_rules:
+            return normalized
+
+    return script_dir
+
+
+def _prepare_runtime_workdir():
+    runtime_root = _find_runtime_root()
+    try:
+        os.chdir(runtime_root)
+    except Exception:
+        pass
+    return runtime_root
+
+
+RUNTIME_ROOT = _prepare_runtime_workdir()
 
 # 设置pandas显示 多列显示和输出对齐
 pd.set_option('display.max_columns', None)
@@ -74,40 +125,79 @@ updating_log = '''
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
-        super(MainWindow, self).__init__(parent)
-        self.setupUi(self)
-        self.setWindowTitle("通用自动测试上位机_蔡_功能测试版_25089_V0.89")
-        # 初始化调试信息
-        self.inits_debugMsg = ui.inits.MainWindowInitDebugMsg(self)
-        self.inits_showMsg = ui.inits.MainWindowInitShowMsg(self)
-        # self.inits_funcTest = ui.inits.MainWindowInitFuncTest(self)
+        if os.path.exists('./配置文件/debug_mode.ini'):
+            self.debug_mode = True
+        else:
+            self.debug_mode = False
+        try:
+            self.list_init_msg = []
+            begin_time = time.time()
+            super(MainWindow, self).__init__(parent)
+            self.setupUi(self)
+            self.setWindowTitle("通用自动测试上位机_蔡_202605_V0.95")
+            icon = QtGui.QIcon()
+            try:
+                icon.addPixmap(QtGui.QPixmap("./配置文件/icon.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.On)
+                self.setWindowIcon(icon)
+            except:
+                pass
+            self.show()
+            self.list_init_msg.append('界面UI初始化完成,耗时: \t{:.4f}s'.format(time.time()-begin_time))
+            
+        except Exception as e:
+            if self.debug_mode:
+                with open('./配置文件/debug_mode.log', 'a', encoding='utf-8') as f:
+                    f.write(f'初始化主窗口UI出错: {e}\n')
+        try:
+            QTimer.singleShot(50, self.init_after_show)
+        except Exception as e:
+            if self.debug_mode:
+                with open('./配置文件/debug_mode.log', 'a', encoding='utf-8') as f:
+                    f.write(f'init_after_show定时器启动出错: {e}\n')
+
         
-        # 调试模式函数
-        self.debug = MainWindowDebug(self)
-        # UI初始化函数
-        self.init_ui = MainWindowInit(self)
-        # 定时事件函数
-        self.times = MainWindowTimes(self)
-        # 全局变量及设定
-        self.settings = MainWindowSetting(self)
-        # 结构体初始函数
-        self.constants = MainWindowConstants(self)
-        # 事件处理函数
-        self.events = MainWindowEvent(self)
-        # 线程处理函数
-        self.threads = MainWindowThread(self)
-        # 逻辑事件逻辑
-        self.uilogic = MainWindowLogic(self)
-        # 获取UI函数
-        self.getui = MainWindowGetUI(self)
-        
-        
-        # 初始化多设备自动控制事件集
-        self.events_devide = ui.events.MainWindowEventDevide(self)
-        # 初始化显示模块 根据uuid判断 后续测试功能需加装测试时间
-        self.events_hidden = ui.events.MainWindowEventHidden(self)
-        # 初始化工具栏-处理标定数据
-        self.tools_bdcalib = ui.tools.MainWindowToolBdcalib(self)
+    def _init_module(self, name, cls):
+        start = time.perf_counter()
+        instance = cls(self)
+        elapsed = time.perf_counter() - start
+        self.list_init_msg.append(f'【{name}】初始化完成,耗时:\t{elapsed:.4f}s')
+        return instance
+
+    def _init_modules_in_batches(self):
+        module_chain = [
+            ('inits_debugMsg', '调试信息', ui.inits.MainWindowInitDebugMsg),
+            ('inits_showMsg', '显示信息', ui.inits.MainWindowInitShowMsg),
+            ('init_ini', '配置文件', MainWindowInitIni),
+            ('debug', '调试模式', MainWindowDebug),
+            ('init_ui', '界面结构', MainWindowInit),
+            ('times', '定时事件', MainWindowTimes),
+            ('settings', '全局变量', MainWindowSetting),
+            ('constants', '结构体', MainWindowConstants),
+            ('events', '事件处理', MainWindowEvent),
+            ('threads', '线程处理', MainWindowThread),
+            ('uilogic', '逻辑处理', MainWindowLogic),
+            ('getui', '获取界面', MainWindowGetUI),
+            ('events_devide', '多设备集', ui.events.MainWindowEventDevide),
+            ('events_hidden', '显示模块', ui.events.MainWindowEventHidden),
+            ('tools_bdcalib', '标定工具', ui.tools.MainWindowToolBdcalib),
+            ('tools_burn_ymodem', 'Ymodem烧录', ui.tools.MainWindowToolBurnYmodem),
+            ('navs','导航模块', ui.navs.MainWindowNavLoc),
+        ]
+        for index, (attr_name, display_name, module_cls) in enumerate(module_chain, start=1):
+            try:
+                setattr(self, attr_name, self._init_module(display_name, module_cls))
+                if index % 4 == 0:
+                    QtWidgets.QApplication.processEvents()
+            except Exception as e:
+                if self.debug_mode:
+                    with open('./配置文件/debug_mode.log', 'a', encoding='utf-8') as f:
+                        f.write(f'初始化模块[{display_name}]出错: {e}\n')
+
+    
+    def init_after_show(self):
+        init_chain_start = time.perf_counter()
+        self._init_modules_in_batches()
+        self.list_init_msg.append('主初始化链路完成,耗时:\t{:.4f}s'.format(time.perf_counter() - init_chain_start))
 
         # self.tableWidget_general_show.setColumnWidth(0, 10)
         # 初始化界面元素
@@ -120,7 +210,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.automatic_time = 0          # 自动测试时间  
         self.plan_name = ''             # 自动标定进度名称
         self.threading_begin_time = 0
-        self.default_alpha = 0.6
+        # 若不存在default_alpha，设置为0.6
+        if 'default_alpha' not in dir(self):
+            self.default_alpha = 0.6
+        if 'config_ini_title_size' not in dir(self):
+            self.config_ini_title_size = '12pt'
+        if 'config_ini_title_color' not in dir(self):
+            self.config_ini_title_color = '#FFFFFF'
+        if 'root_mode' not in dir(self):
+            self.root_mode = False
+        # for i in range(3):
+        #     self.list_gv_adp[i].setTitle('title:{}'.format(i),size = self.config_ini_title_size,color = self.config_ini_title_color)
         self.all_rec_hex = 0
         self.sum_check_err_count = 0
         self.show_message_length = 30   # 显示的最大行数
@@ -129,26 +229,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.list_mean_data = [self.lineEdit_inside_plot_mean1,self.lineEdit_inside_plot_mean2,self.lineEdit_inside_plot_mean3]
         self.list_ffz_data = [self.lineEdit_inside_plot_ffz1,self.lineEdit_inside_plot_ffz2,self.lineEdit_inside_plot_ffz3]
         self.list_std_data = [self.lineEdit_inside_plot_stds1,self.lineEdit_inside_plot_stds2,self.lineEdit_inside_plot_stds3]
-        
-        
-        self.graphicsView_INU_loc_adp = self.graphicsView_INU_loc.addPlot()
-        self.graphicsView_INU_loc_error_adp = self.graphicsView_INU_loc_error.addPlot()
-        self.graphicsView_INU_speed_adp = self.graphicsView_INU_speed.addPlot()
-        self.graphicsView_INU_loc_adp.showGrid(x=True,y=True,alpha=1.0)
-        self.graphicsView_INU_loc_adp.setAspectLocked(True)
-        self.graphicsView_INU_loc_error_adp.showGrid(x=True,y=True,alpha=self.default_alpha)
-        self.graphicsView_INU_speed_adp.showGrid(x=True,y=True,alpha=self.default_alpha)
-
-        self.scatter = pg.ScatterPlotItem()
-        self.graphicsView_INU_loc_adp.addItem(self.scatter)
-        self.scatter.setData([1,2,3],[5,6,7])
-        self.scatterEnd = pg.ScatterPlotItem(brush='r')
-        self.graphicsView_INU_loc_adp.addItem(self.scatterEnd)
-        self.scatterBegin = pg.ScatterPlotItem(brush='g')
-        self.graphicsView_INU_loc_adp.addItem(self.scatterBegin)
-        # self.scatterH.setData([1,2,3],[5,6,7])
-        self.gv_pen_loc_error = self.graphicsView_INU_loc_error_adp.plot(pen='y')
-        self.gv_pen_speed = self.graphicsView_INU_speed_adp.plot(pen='y')
+        # self._inu_plot_items_ready = False
+        # QTimer.singleShot(0, self._init_inu_plot_items_lazy)
 
 
         # 初始化使用元素
@@ -203,6 +285,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.inu_plot_always = False
         self.inu_plot_once = False
         self.inu_plot_clear = False
+        self.inu_lon_axis = 1
+        self.inu_lat_axis = 1
+        self.inu_eastspd_axis = 1
+        self.inu_northspd_axis = 1
+        self.inu_pitch_axis = 1
+        self.inu_roll_axis = 1
+        self.inu_yaw_axis = 1
+        self.inu_upspd_axis = 1
+        self.inu_stand_lon_text = str(self.default_longitude)
+        self.inu_stand_lat_text = str(self.default_latitude)
+        self.inu_stand_east_text = ''
+        self.inu_stand_north_text = ''
+        self.inu_stand_up_text = ''
 
 
         # 初始化标定进度相关标志位
@@ -245,12 +340,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.debug_update_5s = False
         self.debug_update_5s_file = False
         self.debug_update_1s = False
-        if not hasattr(self, "root_mode"):
-            self.root_mode = False
         self.debug_list_1 = []
         self.debug_list_2 = []
         self.debug_list_3 = []
         self.debug_list_4 = []
+        self.debug_list_5 = []
+        self.debug_list_6 = []
         self.lineEdit_debug_QlineEdit_list = []
         self.lineEdit_debug_message_list = []
         for i in range(8):
@@ -274,6 +369,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.config_sum_check1 = None
         self.config_sum_check2 = None
         self.config_sum_check3 = None
+        self.config_crc_check = None        # CRC校验和位置及其累加位置 格式： [校验和位置,累加起始:累加结束]
         self.drop0data = []             # 惯导通用协议中，在秒值处理中丢弃对应数据中为0的数
         # 解算规则配置
         self.rules_lists_format = 'xcbB?hHiIlLqQfdspPtyY'   # 解算规则可用范围
@@ -404,11 +500,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         # 多路选择combobox 
         combobox_lists = [
-            self.comboBox_plot_choiceTab,
-            self.comboBox_INU_choiceTab_stand,
-            self.comboBox_INU_choiceTab_target
+            getattr(self, 'comboBox_plot_choiceTab', None),
+            getattr(self, 'comboBox_INU_choiceTab_stand', None),
+            getattr(self, 'comboBox_INU_choiceTab_target', None),
         ]
         for item in combobox_lists:
+            if item is None:
+                continue
             item.clear()
             for i in range(12):
                 item.addItem('{} {}'.format(i+1,'路'))
@@ -611,9 +709,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # 绘图逻辑更新-绘制轴向及标题更新 20241012
         self.comboBox_plot_beginAxis.currentTextChanged.connect(self.update_plot_axis)
         self.comboBox_plot_doubleAxis.currentTextChanged.connect(self.update_double_axis)
-        self.comboBox_INU_beginAxis_stand.currentTextChanged.connect(self.update_stand_axis)
-        self.comboBox_INU_beginAxis_loc.currentTextChanged.connect(self.update_target_loc)
-        self.comboBox_INU_beginAxis_spd.currentTextChanged.connect(self.update_target_spd)
+        if hasattr(self, 'comboBox_INU_beginAxis_stand'):
+            self.comboBox_INU_beginAxis_stand.currentTextChanged.connect(self.update_stand_axis)
+        if hasattr(self, 'comboBox_INU_beginAxis_loc'):
+            self.comboBox_INU_beginAxis_loc.currentTextChanged.connect(self.update_target_loc)
+        if hasattr(self, 'comboBox_INU_beginAxis_spd'):
+            self.comboBox_INU_beginAxis_spd.currentTextChanged.connect(self.update_target_spd)
         # 多路文件名同步更新
         self.lineEdit_file_names_all.textChanged.connect(self.filenames_change)
         # 规则更新同步
@@ -647,6 +748,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lineEdit_inside_doubleplot_axis_list = []
         self.lineEdit_inside_plot_para_list = []
         self.init_all_coef()
+        self._bind_plot_imu_lineedit_sync()
+        self._sync_plot_window_to_imu()
 
 
 
@@ -712,6 +815,72 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # 装订逻辑更新后 更新经纬度等相关信息，用于自动装订
         self.init_all_coef_end()
 
+    def _bind_plot_imu_lineedit_sync(self):
+        src_names = ['lineEdit_plot_rolling', 'lineEdit_plot_skipcount', 'lineEdit_plot_endcoun']
+        for src_name in src_names:
+            src_widget = getattr(self, src_name, None)
+            if src_widget is None:
+                continue
+            try:
+                src_widget.textChanged.connect(self._sync_plot_window_to_imu)
+            except Exception:
+                pass
+
+    def _sync_plot_window_to_imu(self):
+        mapping = [
+            ('lineEdit_plot_rolling', 'lineEdit_IMU_rolls', 'inu_rolling_text', '1'),
+            ('lineEdit_plot_skipcount', 'lineEdit_IMU_skip', 'inu_skip_count_text', '1'),
+            ('lineEdit_plot_endcoun', 'lineEdit_IMU_end', 'inu_end_count_text', '0'),
+        ]
+        for src_name, dst_name, attr_name, default_text in mapping:
+            src_widget = getattr(self, src_name, None)
+            if src_widget is None:
+                continue
+            src_text = str(src_widget.text()).strip()
+            if len(src_text) == 0:
+                src_text = default_text
+
+            dst_widget = getattr(self, dst_name, None)
+            if dst_widget is not None:
+                try:
+                    if str(dst_widget.text()) != src_text:
+                        dst_widget.setText(src_text)
+                except Exception:
+                    pass
+
+            setattr(self, attr_name, src_text)
+
+    # def _init_inu_plot_items_lazy(self):
+    #     if getattr(self, '_inu_plot_items_ready', False):
+    #         return
+    #     config_background_color = self.init_ini.config_background_color
+    #     config_main_line_color = self.init_ini.config_main_line_color
+    #     config_line_width = self.init_ini.config_line_width
+    #     for graphicsView in [self.graphicsView_INU_loc, self.graphicsView_INU_loc_error, self.graphicsView_INU_speed]:
+    #         graphicsView.setBackground(config_background_color)
+
+    #     self.graphicsView_INU_loc_adp = self.graphicsView_INU_loc.addPlot()
+    #     self.graphicsView_INU_loc_error_adp = self.graphicsView_INU_loc_error.addPlot()
+    #     self.graphicsView_INU_speed_adp = self.graphicsView_INU_speed.addPlot()
+    #     self.graphicsView_INU_loc_adp.showGrid(x=True, y=True, alpha=1.0)
+    #     self.graphicsView_INU_loc_adp.setAspectLocked(True)
+    #     self.graphicsView_INU_loc_error_adp.showGrid(x=True, y=True, alpha=self.default_alpha)
+    #     self.graphicsView_INU_speed_adp.showGrid(x=True, y=True, alpha=self.default_alpha)
+
+    #     self.scatter = pg.ScatterPlotItem()
+    #     self.graphicsView_INU_loc_adp.addItem(self.scatter)
+    #     self.scatter.setData([1, 2, 3], [5, 6, 7])
+    #     self.scatterEnd = pg.ScatterPlotItem(brush='r')
+    #     self.graphicsView_INU_loc_adp.addItem(self.scatterEnd)
+    #     self.scatterBegin = pg.ScatterPlotItem(brush='g')
+    #     self.graphicsView_INU_loc_adp.addItem(self.scatterBegin)
+    #     self.gv_pen_loc_error = self.graphicsView_INU_loc_error_adp.plot(
+    #         pen=pg.mkPen(color=config_main_line_color, width=config_line_width)
+    #     )
+    #     self.gv_pen_speed = self.graphicsView_INU_speed_adp.plot(
+    #         pen=pg.mkPen(color=config_main_line_color, width=config_line_width)
+    #     )
+    #     self._inu_plot_items_ready = True
 
 
 
@@ -719,30 +888,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
 
-
-
-
-
-
-    def init_all_coef_end(self):
-        self.lineEdit_INU_plot_stand_lon.setText(str(self.default_longitude))
-        self.lineEdit_INU_plot_stand_lat.setText(str(self.default_latitude))
-        self.lineEdit_binding_60s_2.setText(str(self.default_longitude))
-        self.lineEdit_binding_60s_3.setText(str(self.default_latitude))
-        self.lineEdit_sate_1_3.setText(str(self.default_longitude))
-        self.lineEdit_sate_1_2.setText(str(self.default_latitude))
-        self.lineEdit_binding_td_10.setText(str(self.default_longitude))
-        self.lineEdit_binding_td_11.setText(str(self.default_latitude))
-        self.lineEdit_binding_gnss_8.setText(str(self.default_longitude))
-        self.lineEdit_binding_gnss_9.setText(str(self.default_latitude))
-        self.tableWidget_table_show.setRowCount(self.config_table_row)
-        self.tableWidget_table_show.setColumnCount(self.config_table_col*2)
-        # --------------通用装订配置项--------------    20250102
-        self.tableWidget_general_show.setColumnWidth(0, self.default_bindWidth_0)
-        self.tableWidget_general_show.setColumnWidth(1, self.default_bindWidth_1)
-        self.tableWidget_general_show.setColumnWidth(2, self.default_bindWidth_2)
-        self.tableWidget_decode_show.setColumnWidth(0, self.default_bindWidth_0)
-        self.change_sate_button()
 
     def init_all_coef(self):
         self.lineEdit_inside_plot_axis_list = []
@@ -767,6 +912,33 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.textBrowser_ascii_list.append(
                 self.findChild(QtWidgets.QTextBrowser, 'textBrowser_ascii_{}'.format(i))
             )
+        self.debug_list_6+=self.list_init_msg
+        self.list_init_msg = []
+
+
+
+
+    def init_all_coef_end(self):
+        self.inu_stand_lon_text = str(self.default_longitude)
+        self.inu_stand_lat_text = str(self.default_latitude)
+        self.lineEdit_binding_60s_2.setText(str(self.default_longitude))
+        self.lineEdit_binding_60s_3.setText(str(self.default_latitude))
+        self.lineEdit_sate_1_3.setText(str(self.default_longitude))
+        self.lineEdit_sate_1_2.setText(str(self.default_latitude))
+        self.lineEdit_binding_td_10.setText(str(self.default_longitude))
+        self.lineEdit_binding_td_11.setText(str(self.default_latitude))
+        self.lineEdit_binding_gnss_8.setText(str(self.default_longitude))
+        self.lineEdit_binding_gnss_9.setText(str(self.default_latitude))
+        self.tableWidget_table_show.setRowCount(self.config_table_row)
+        self.tableWidget_table_show.setColumnCount(self.config_table_col*2)
+        # --------------通用装订配置项--------------    20250102
+        self.tableWidget_general_show.setColumnWidth(0, self.default_bindWidth_0)
+        self.tableWidget_general_show.setColumnWidth(1, self.default_bindWidth_1)
+        self.tableWidget_general_show.setColumnWidth(2, self.default_bindWidth_2)
+        self.tableWidget_decode_show.setColumnWidth(0, self.default_bindWidth_0)
+        self.change_sate_button()
+
+
             
     
     # 事件更新0.1s线程，用于更新数据输出和绘图
@@ -914,7 +1086,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                             show_title = list_title[i]
                         else:
                             show_title = '{} + {}'.format(list_title[i],list_title2[i])
-                        self.list_gv_adp[i].setTitle(show_title)
+                        self.list_gv_adp[i].setTitle(show_title,size = self.config_ini_title_size,color = self.config_ini_title_color)
                     except Exception as e:
                         self.debug_list_1.append('{}设置绘图标题错误:{}'.format(self .normal_time,e))
                     mean_data = plot_data.mean()
@@ -985,6 +1157,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.textBrowser_debug_4.append(self.debug_list_4.pop(0))
         while len(self.debugMsgList_devide)>0:
             self.textBrowser_debug_5.append(self.debugMsgList_devide.pop(0))
+        while len(self.debug_list_5)>0:
+            self.textBrowser_debug_5.append(self.debug_list_5.pop(0))
+        while len(self.debug_list_6)>0:
+            self.textBrowser_debug_6.append(self.debug_list_6.pop(0))
         self.lineEdit_debug_message_list[2].append('总接收数:{}'.format(self.all_rec_hex))
         self.lineEdit_debug_message_list[3].append('校验失败:{}'.format(self.sum_check_err_count))
 
@@ -995,53 +1171,79 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     #  事件更新2s线程，用于更新INU等需要时间计算的内容
     def show_message_2s(self):
-        combobox_list = [
-            self.comboBox_INU_choiceTab_stand,
-            self.comboBox_INU_beginAxis_stand,
-            self.comboBox_INU_choiceTab_target,
-            self.comboBox_INU_beginAxis_loc,
-            self.comboBox_INU_beginAxis_spd
-        ]
-        choiceTab_stand=0
-        beginAxis_stand=0
-        choiceTab_target=0
-        beginAxis_loc=0
-        beginAxis_spd=0
-        get_combobox_list = [
-            choiceTab_stand,
-            beginAxis_stand,
-            choiceTab_target,
-            beginAxis_loc,
-            beginAxis_spd
-        ]
-        for i in range(len(combobox_list)):
-            try:
-                get_combobox_list[i] = int(combobox_list[i].currentText().split()[0])
-            except:
-                get_combobox_list[i]=1
-        
+        # self._init_inu_plot_items_lazy()
         if (self.inu_plot_always == True) | self.checkBox_INU_update_always.isChecked()| self.checkBox_INU_update_once.isChecked():
             self.checkBox_INU_update_once.setChecked(False)
-            try:lon_axis = int(self.lineEdit_INU_plot_target_lon.text().split()[0])
+            loc_error_series = None
+            speed_error_series = None
+            try:lon_axis = int(str(getattr(self, 'inu_lon_axis', 1)).split()[0])
             except:lon_axis = 1
-            try:lat_axis = int(self.lineEdit_INU_plot_target_lat.text().split()[0])
+            try:lat_axis = int(str(getattr(self, 'inu_lat_axis', 1)).split()[0])
             except:lat_axis = 1
-            try:stand_lon_axis = int(self.lineEdit_INU_plot_target_lon.text().split()[0])
-            except:stand_lon_axis = 1
-            try:stand_lat_axis = int(self.lineEdit_INU_plot_target_lat.text().split()[0])
-            except:stand_lat_axis = 1
-            try:plot_tab = int(self.comboBox_INU_choiceTab_target.currentText().split()[0])
-            except:plot_tab = 1
-            try:stand_tab = int(self.comboBox_INU_choiceTab_stand.currentText().split()[0])
-            except:stand_tab = 1
-            try:nspd_axis = int(self.lineEdit_INU_plot_target_northspd.text().split()[0])
+            try:
+                combo_target = getattr(self, 'comboBox_INU_choiceTab_target', None)
+                if combo_target is not None:
+                    plot_tab = int(combo_target.currentText().split()[0])
+                else:
+                    plot_tab = int(getattr(self, 'inu_target_tab', 1))
+            except:plot_tab = int(getattr(self, 'inu_target_tab', 1))
+            try:
+                combo_stand = getattr(self, 'comboBox_INU_choiceTab_stand', None)
+                if combo_stand is not None:
+                    stand_tab = int(combo_stand.currentText().split()[0])
+                else:
+                    stand_tab = int(getattr(self, 'inu_stand_tab', 1))
+            except:stand_tab = int(getattr(self, 'inu_stand_tab', 1))
+            try:nspd_axis = int(str(getattr(self, 'inu_northspd_axis', 1)).split()[0])
             except:nspd_axis = 1
-            try:espd_axis = int(self.lineEdit_INU_plot_target_eastspd.text().split()[0])
+            try:espd_axis = int(str(getattr(self, 'inu_eastspd_axis', 1)).split()[0])
             except:espd_axis = 1
+            stand_nspd_text = str(getattr(self, 'inu_stand_north_text', '')).strip()
+            stand_espd_text = str(getattr(self, 'inu_stand_east_text', '')).strip()
+            try:stand_nspd_axis = int(stand_nspd_text.split()[0]) if len(stand_nspd_text) > 0 else None
+            except:stand_nspd_axis = None
+            try:stand_espd_axis = int(stand_espd_text.split()[0]) if len(stand_espd_text) > 0 else None
+            except:stand_espd_axis = None
 
-            skip_count = try_get_text(self.lineEdit_INU_skipcount,int,1)
-            end_count = try_get_text(self.lineEdit_INU_endcount,int,0)
-            rolls = try_get_text(self.lineEdit_INU_rolling,int,0)
+            try:
+                lineEdit_skip = getattr(self, 'lineEdit_IMU_skip', None)
+                if lineEdit_skip is None:
+                    lineEdit_skip = getattr(self, 'lineEdit_INU_skipcount', None)
+                if lineEdit_skip is not None:
+                    skip_count = try_get_text(lineEdit_skip, int, 1)
+                else:
+                    skip_count = int(getattr(self, 'inu_skip_count_text', '1'))
+            except:
+                skip_count = int(getattr(self, 'inu_skip_count_text', '1'))
+
+            try:
+                lineEdit_end = getattr(self, 'lineEdit_IMU_end', None)
+                if lineEdit_end is None:
+                    lineEdit_end = getattr(self, 'lineEdit_INU_endcount', None)
+                if lineEdit_end is not None:
+                    end_count = try_get_text(lineEdit_end, int, 0)
+                else:
+                    end_count = int(getattr(self, 'inu_end_count_text', '0'))
+            except:
+                end_count = int(getattr(self, 'inu_end_count_text', '0'))
+
+            try:
+                lineEdit_roll = getattr(self, 'lineEdit_IMU_rolls', None)
+                if lineEdit_roll is None:
+                    lineEdit_roll = getattr(self, 'lineEdit_INU_rolling', None)
+                if lineEdit_roll is not None:
+                    rolls = try_get_text(lineEdit_roll, int, 1)
+                else:
+                    rolls = int(getattr(self, 'inu_rolling_text', '1'))
+            except:
+                rolls = int(getattr(self, 'inu_rolling_text', '1'))
+
+            skip_count = max(0, int(skip_count))
+            end_count = max(0, int(end_count))
+            rolls = max(1, int(rolls))
+            self.inu_skip_count_text = str(skip_count)
+            self.inu_end_count_text = str(end_count)
+            self.inu_rolling_text = str(rolls)
             plot_scatter_data = self.show_message_dataframe[plot_tab-1]
             plot_stand_data = self.show_message_dataframe[stand_tab-1]
             try:
@@ -1059,11 +1261,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.debug_list_3.append('{} INU_plot 绘制scatter失败:{}'.format(self.normal_time,e))
 
             try:
+                stand_lon_text = str(getattr(self, 'inu_stand_lon_text', self.default_longitude)).strip()
                 try:
-                    stand_lon = float(self.lineEdit_INU_plot_stand_lon.text())
+                    stand_lon = float(stand_lon_text)
                 except:
                     try:
-                        stand_lon_axis = int(self.lineEdit_INU_plot_stand_lon.text().split()[0])
+                        stand_lon_axis = int(stand_lon_text.split()[0])
                         if end_count==0:
                             stand_lon = plot_stand_data.iloc[skip_count:,stand_lon_axis].reset_index(drop=True).rolling(rolls).mean()
                         else:
@@ -1072,11 +1275,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     except Exception as e:
                         stand_lon = 116.50271
                         self.debug_list_3.append('获取经度失败，使用默认值{}'.format(stand_lon))
+                stand_lat_text = str(getattr(self, 'inu_stand_lat_text', self.default_latitude)).strip()
                 try:
-                    stand_lat = float(self.lineEdit_INU_plot_stand_lat.text())
+                    stand_lat = float(stand_lat_text)
                 except:
                     try:
-                        stand_lat_axis =  int(self.lineEdit_INU_plot_stand_lat.text().split()[0])
+                        stand_lat_axis =  int(stand_lat_text.split()[0])
                         if end_count==0:
                             stand_lat = plot_stand_data.iloc[skip_count:,stand_lat_axis].reset_index(drop=True).rolling(rolls).mean()
                         else:
@@ -1100,20 +1304,87 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 a = np.sin(dlat / 2) ** 2 + np.cos(tar_lat) * np.cos(stand_lat) * np.sin(dlon / 2) ** 2
                 c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
                 c = c*6371000
+                loc_error_series = c
                 self.gv_pen_loc_error.setData(c)
             except Exception as e:
                 self.debug_list_3.append('{} INU_plot 绘制位置误差失败:{}'.format(self.normal_time,e))
             try:
                 if end_count==0:
-                    tar_Nspd = plot_scatter_data.iloc[skip_count:,espd_axis].reset_index(drop=True).rolling(rolls).mean()
-                    tar_Espd = plot_scatter_data.iloc[skip_count:,nspd_axis].reset_index(drop=True).rolling(rolls).mean()
+                    tar_Nspd = plot_scatter_data.iloc[skip_count:,nspd_axis].reset_index(drop=True).rolling(rolls).mean()
+                    tar_Espd = plot_scatter_data.iloc[skip_count:,espd_axis].reset_index(drop=True).rolling(rolls).mean()
                 else:
-                    tar_Nspd = plot_scatter_data.iloc[skip_count:-end_count,espd_axis].reset_index(drop=True).rolling(rolls).mean()
-                    tar_Espd = plot_scatter_data.iloc[skip_count:-end_count,nspd_axis].reset_index(drop=True).rolling(rolls).mean()
-                self.gv_pen_speed.setData(np.sqrt( tar_Nspd**2+tar_Espd**2 ))
+                    tar_Nspd = plot_scatter_data.iloc[skip_count:-end_count,nspd_axis].reset_index(drop=True).rolling(rolls).mean()
+                    tar_Espd = plot_scatter_data.iloc[skip_count:-end_count,espd_axis].reset_index(drop=True).rolling(rolls).mean()
+
+                if (stand_nspd_axis is not None) and (stand_espd_axis is not None):
+                    if end_count==0:
+                        stand_Nspd = plot_stand_data.iloc[skip_count:,stand_nspd_axis].reset_index(drop=True).rolling(rolls).mean()
+                        stand_Espd = plot_stand_data.iloc[skip_count:,stand_espd_axis].reset_index(drop=True).rolling(rolls).mean()
+                    else:
+                        stand_Nspd = plot_stand_data.iloc[skip_count:-end_count,stand_nspd_axis].reset_index(drop=True).rolling(rolls).mean()
+                        stand_Espd = plot_stand_data.iloc[skip_count:-end_count,stand_espd_axis].reset_index(drop=True).rolling(rolls).mean()
+                    speed_error = np.sqrt((stand_Nspd - tar_Nspd) ** 2 + (stand_Espd - tar_Espd) ** 2)
+                    speed_error_series = speed_error
+                    self.gv_pen_speed.setData(speed_error)
+                else:
+                    speed_error = np.sqrt(tar_Nspd**2 + tar_Espd**2)
+                    speed_error_series = speed_error
+                    self.gv_pen_speed.setData(speed_error)
             
             except Exception as e:
                 self.debug_list_3.append('{} INU_plot 绘制速度误差失败:{}'.format(self.normal_time,e))
+
+            try:
+                self._update_inu_error_stats(loc_error_series, speed_error_series)
+            except Exception as e:
+                self.debug_list_3.append('{} INU_plot 更新误差统计失败:{}'.format(self.normal_time,e))
+
+            try:
+                if hasattr(self, 'navs') and self.navs is not None:
+                    self.navs.update_attitude_from_dataframe(
+                        plot_scatter_data,
+                        skip_count=skip_count,
+                        end_count=end_count,
+                        rolling=max(1, rolls),
+                    )
+            except Exception as e:
+                self.debug_list_3.append('{} INU_plot 姿态更新失败:{}'.format(self.normal_time,e))
+
+    def _calc_inu_error_stats(self, data):
+        arr = np.asarray(data, dtype=float)
+        arr = arr[np.isfinite(arr)]
+        if arr.size == 0:
+            return None
+        return {
+            'mean': float(np.mean(arr)),
+            'max': float(np.max(arr)),
+            'sigma': float(np.std(arr, ddof=0)),
+            'cep': float(np.percentile(arr, 50)),
+        }
+
+    def _set_lineedit_text_if_exists(self, name, text):
+        widget = getattr(self, name, None)
+        if widget is not None:
+            widget.setText(text)
+
+    def _update_inu_error_stats(self, loc_data, spd_data):
+        decimals = int(getattr(self, 'default_plot_decimal', 3))
+        fmt = '{:.' + str(decimals) + 'f}'
+
+        loc_stats = self._calc_inu_error_stats(loc_data) if loc_data is not None else None
+        spd_stats = self._calc_inu_error_stats(spd_data) if spd_data is not None else None
+
+        if loc_stats is not None:
+            self._set_lineedit_text_if_exists('lineEdit_loc_mean', fmt.format(loc_stats['mean']))
+            self._set_lineedit_text_if_exists('lineEdit_loc_max', fmt.format(loc_stats['max']))
+            self._set_lineedit_text_if_exists('lineEdit_loc_sigma', fmt.format(loc_stats['sigma']))
+            self._set_lineedit_text_if_exists('lineEdit_loc_cep', fmt.format(loc_stats['cep']))
+
+        if spd_stats is not None:
+            self._set_lineedit_text_if_exists('lineEdit_spd_mean', fmt.format(spd_stats['mean']))
+            self._set_lineedit_text_if_exists('lineEdit_spd_max', fmt.format(spd_stats['max']))
+            self._set_lineedit_text_if_exists('lineEdit_spd_sigma', fmt.format(spd_stats['sigma']))
+            self._set_lineedit_text_if_exists('lineEdit_spd_cep', fmt.format(spd_stats['cep']))
 
 
 
@@ -1858,7 +2129,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 if (command==0)|(command>6):
                     power_serials.write(bytes.fromhex(self.powerControl_mainlist[1]))
                     time.sleep(0.1)
-                    power_serials.wri5te(bytes.fromhex(self.powerControl_mainlist[1]))
+                    power_serials.write(bytes.fromhex(self.powerControl_mainlist[1]))
                 else:
                     commands1 = self.powerControl_closelist[command*2]
                     commands2 = self.powerControl_closelist[command*2+1]
@@ -1875,18 +2146,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     # 点击自动设置经纬速度事件 20241028
     def event_autoset_inu(self):
-        self.lineEdit_INU_plot_stand_lon.setText(str(self.default_longitude))
-        self.lineEdit_INU_plot_stand_lat.setText(str(self.default_latitude))
+        self.inu_stand_lon_text = str(self.default_longitude)
+        self.inu_stand_lat_text = str(self.default_latitude)
         # self.lineEdit_INU_skipcount.setText('300')  
         for i in range(len(self.sorted_titl_list)):
             if '经度' in self.sorted_titl_list[i]:
-                self.lineEdit_INU_plot_target_lon.setText('{} {}'.format(i,self.sorted_titl_list[i]))
+                self.inu_lon_axis = i
             if '纬度' in self.sorted_titl_list[i]:
-                self.lineEdit_INU_plot_target_lat.setText('{} {}'.format(i,self.sorted_titl_list[i]))
+                self.inu_lat_axis = i
             if ('北' in self.sorted_titl_list[i]) & ('速' in self.sorted_titl_list[i]):
-                self.lineEdit_INU_plot_target_northspd.setText('{} {}'.format(i,self.sorted_titl_list[i]))
+                self.inu_northspd_axis = i
             if ('东' in self.sorted_titl_list[i]) & ('速' in self.sorted_titl_list[i]):
-                self.lineEdit_INU_plot_target_eastspd.setText('{} {}'.format(i,self.sorted_titl_list[i]))
+                self.inu_eastspd_axis = i
+            if ('天' in self.sorted_titl_list[i]) & ('速' in self.sorted_titl_list[i]):
+                self.inu_upspd_axis = i
+            if ('俯仰' in self.sorted_titl_list[i]) | ('俯角' in self.sorted_titl_list[i]):
+                self.inu_pitch_axis = i
+            if ('滚转' in self.sorted_titl_list[i]) | ('横滚' in self.sorted_titl_list[i]):
+                self.inu_roll_axis = i
+            if ('航向' in self.sorted_titl_list[i]) | ('偏航' in self.sorted_titl_list[i]):
+                self.inu_yaw_axis = i
         return 0
     def event_reload_config(self):
         self.read_default_para_config()
@@ -1912,8 +2191,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # except:
         #     df = pd.read_csv(file_path,sep='',header=None,skiprows=1)
         try:
-            # df = pd.read_csv(file_path,sep='\\s+',header=None,skiprows=1)
-            df = pd.read_csv(file_path,sep=r'[,，\s]+',header=None,skiprows=1,engine='python')
+            df = pd.read_csv(file_path,sep='\\s+',header=None,skiprows=1)
             self.show_message_dataframe[0] = df
             self.show_message_automatic_list.append('{} 载入文件 长度:{} 路径:\n  {}'.format(self.normal_time,len(df),file_path))
             self.show_timer2.start(self.default_plot_load)
@@ -1958,7 +2236,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if decode_rule_path not in self.list_notpath:
             load_path+= '/{}'.format(decode_rule_path)
         decode_rule_name = self.comboBox_protocal_rule.currentText()
-        with open('{}/{}.txt'.format(load_path,decode_rule_name), 'r+') as f:
+        with open('{}/{}.txt'.format(load_path,decode_rule_name), 'r+',errors='replace') as f:
             decode_rule_file = f.read()
         decode_struct = class_rule()
         decode_struct.read_rule_file(decode_rule_file)
@@ -2147,6 +2425,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.config_sum_check1 = None
         self.config_sum_check2 = None
         self.config_sum_check3 = None
+        self.config_crc_check = None
         try:
             sender = self.sender()
             sender_from_combox = isinstance(sender,QtWidgets.QComboBox)
@@ -2243,6 +2522,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.lineEdit_binding_time.setText(lines.split()[2])
                 # elif lines.split()[1].lower() == 'special_flag':
                 #     self.config_special_flag = lines.split()[2]
+                # 校验格式 累加校验sum、异或校验xor
                 elif (lines.split()[1].lower() == 'sum_check')|(lines.split()[1].lower() == 'sum'):
                     self.config_sum_check0 = lines.split()[2]
                 elif (lines.split()[1].lower() == 'sum_check1')|(lines.split()[1].lower() == 'sum1'):
@@ -2251,6 +2531,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.config_sum_check2 = lines.split()[2]
                 elif (lines.split()[1].lower() == 'sum_check3')|(lines.split()[1].lower() == 'sum3'):
                     self.config_sum_check3 = lines.split()[2]
+                elif lines.split()[1].lower() in ['crc','crc16','crc16_00']:
+                    self.config_crc_check = lines.split()[2]
                 elif lines.split()[1].lower() == 'drop0data':
                     line_split = lines.split()[2]
                     for i in range(9):
@@ -2374,10 +2656,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         combobox_lists = [
             self.comboBox_plot_beginAxis,
             self.comboBox_plot_doubleAxis,
-            self.comboBox_INU_beginAxis_stand,
-            self.comboBox_INU_beginAxis_loc,
-            self.comboBox_INU_beginAxis_spd
         ]
+        for inu_combobox_name in ['comboBox_INU_beginAxis_stand', 'comboBox_INU_beginAxis_loc', 'comboBox_INU_beginAxis_spd']:
+            inu_combobox = getattr(self, inu_combobox_name, None)
+            if inu_combobox is not None:
+                combobox_lists.append(inu_combobox)
         for combobox_item in combobox_lists:
             combobox_item.clear()
             combobox_item.addItem('')
@@ -2481,6 +2764,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.findChild(QtWidgets.QLineEdit, 'lineEdit_inside_plot_doubleAxis{}'.format(i+1)).setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
     # 更新目标标题和选择
     def update_stand_axis(self):
+        if not hasattr(self, 'comboBox_INU_beginAxis_stand'):
+            return False
         try:
             currenttext = self.comboBox_INU_beginAxis_stand.currentText()
             if len(currenttext)==0:
@@ -2496,12 +2781,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             begin_axis = len(self.sorted_titl_list)-2
         try:
             i=0
-            self.lineEdit_INU_plot_stand_lon.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            self.inu_stand_lon_text = '{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis])
             i+=1
-            self.lineEdit_INU_plot_stand_lat.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            self.inu_stand_lat_text = '{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis])
         except Exception as e:
             self.debug_list_1.append('update_stand_axis错误:{}'.format(e))
     def update_target_loc(self):
+        if not hasattr(self, 'comboBox_INU_beginAxis_loc'):
+            return False
         try:
             currenttext = self.comboBox_INU_beginAxis_loc.currentText()
             if len(currenttext)==0:
@@ -2517,12 +2804,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             begin_axis = len(self.sorted_titl_list)-2
         try:
             i=0
-            self.lineEdit_INU_plot_target_lon.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            self.inu_lon_axis = i+begin_axis
             i+=1
-            self.lineEdit_INU_plot_target_lat.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            self.inu_lat_axis = i+begin_axis
         except Exception as e:
             self.debug_list_1.append('update_target_loc错误:{}'.format(e))
     def update_target_spd(self):
+        if not hasattr(self, 'comboBox_INU_beginAxis_spd'):
+            return False
         try:
             currenttext = self.comboBox_INU_beginAxis_spd.currentText()
             if len(currenttext)==0:
@@ -2538,9 +2827,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             begin_axis = len(self.sorted_titl_list)-2
         try:
             i=0
-            self.lineEdit_INU_plot_target_northspd.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            self.inu_northspd_axis = i+begin_axis
             i+=1
-            self.lineEdit_INU_plot_target_eastspd.setText('{} {}'.format(i+begin_axis,self.sorted_titl_list[i+begin_axis]))
+            self.inu_eastspd_axis = i+begin_axis
         except Exception as e:
             self.debug_list_1.append('update_target_loc错误:{}'.format(e))
 
@@ -2810,7 +3099,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                         config_sum_check_list.append(split_list) 
                 except Exception as e:
                     self.debug_list_2.append('{} 获取校验和2错误:{}'.format(self.normal_time,e))
-                    
+        config_crc_check_list = None
+        if self.config_crc_check is not None:
+            try:
+                split_list = split_plus(self.config_crc_check)
+                split_list = [int(num) for num in split_list]
+                if len(split_list)==3:
+                    config_crc_check_list = split_list 
+                else:
+                    config_crc_check_list = None
+            except Exception as e:
+                self.debug_list_2.append('{} 获取CRC校验错误:{}'.format(self.normal_time,e))
 
         if len(config_sum_check_list)==0:
             self.config_sum_check = None
@@ -2952,28 +3251,39 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             if hex_length_result:
                 self.show_message_12tab[0]+=1
                 decode_begin_time = time.time()
-                if isinstance(decode_hex,bytes):
+                header_check = False
+                if not isinstance(decode_hex,bytes):
+                    if self.config_decode_header_type:
+                        frame = all_data[:decode_fram_leng]
+                        if frame.startswith(decode_rule_header):
+                            header_check = True
+                    else:
+                        frame = all_data[:decode_fram_leng]
+                        next_frame = all_data[decode_fram_leng:decode_fram_leng*2]
+                        if frame.startswith(decode_rule_header) & next_frame.startswith(decode_rule_header):
+                            header_check = True
+                        
+                else:
                     frame = frame_list[frame_list_count]
                     next_frame = frame_list[frame_list_count+1]
-                else:
-                    frame = all_data[:decode_fram_leng]
-                    next_frame = all_data[decode_fram_leng:decode_fram_leng*2]
-                if frame.startswith(decode_rule_header) & next_frame.startswith(decode_rule_header): 
+                    header_check = True
                     
+                if  header_check: 
                     frame_error_count = 0
                     if isinstance(decode_hex,bytes):
                         frame_list_count+=1
                     else:
                         all_data = all_data[decode_fram_leng:]
-                    receive_data_hz,sum_check_result = decode_hex_frame_list(frame,decode_rule_list,decode_save_list,decode_para_list,decode_sort_list,decode_edia_list,config_sum_check)
-                    # receive_data_hz[-1] = sum_check_result
+                    receive_data_hz,sum_check_result = decode_hex_frame_list(frame,decode_rule_list,decode_save_list,decode_para_list,decode_sort_list,decode_edia_list,config_sum_check,config_crc_check_list)
+                    receive_data_hz[-1] = sum_check_result
                     
                     if config_sum_check is not None:
                         self.show_message_12tab[2]+=1
-                        receive_data_hz.append(sum_check_result)
-                        if sum_check_result:
-                            sum_check_result = True
-                        else:
+                        # receive_data_hz.append(sum_check_result)
+                        # if sum_check_result:
+                        #     sum_check_result = True
+                        # else:
+                        if not sum_check_result:
                             self.sum_check_err_count+=1
                             if self.default_sumcheck_flag:
                                 continue
@@ -3400,10 +3710,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     elif 'off' in list_plan[2].lower():
                         temp_commands = 'POWER,OFF'
                     else :
+                        # 尝试获取温度
                         try:
-                            temp_commands = 'TEMP,S{}'.format(int(list_plan[2]))
-                        except Exception as e:
-                            temp_commands = False   
+                            set_temp = int(list_plan[2])
+                            temp_commands = 'TEMP,S{}'.format(set_temp)
+                        except:
+                            # 非定值，走程序控制 格式： temp 起始温度：结束温度：消耗时间
+                            try:
+                                # 分割符号可能为，,：，空格
+                                temp_list = re.split(r'[,，:：\s]+',list_plan[2])
+                                temp_list = [int(i) for i in temp_list]
+                                temp_list[2] = temp_list[2]//60
+                                if len(temp_list)>2:
+                                    temp_commands = 'RUN PRGM, TEMP{} GOTEMP{} TIME{}:{}'.format(
+                                        temp_list[0],temp_list[1],temp_list[2]//60,temp_list[2]%60
+                                        )
+                                else:
+                                    temp_commands = False
+                            except:
+                                self.show_message_automatic_list.append('{} 错误: {}'.format(self.normal_time, list_plan[2]))
+                                temp_commands = False
                     result = False
                     for i in range(3):
                         if temp_commands:
@@ -3921,7 +4247,7 @@ def calculate_xorsum(data):
         checksum ^= byte
     return checksum & 0xFF 
 # 按规则列表转换十六进制原始数
-def decode_hex_frame_list(frame,decode_rule_list,decode_save_list,decode_para_list,decode_sort_list,decode_edia_list,config_sum_check_list=None):
+def decode_hex_frame_list(frame,decode_rule_list,decode_save_list,decode_para_list,decode_sort_list,decode_edia_list,config_sum_check_list=None,config_crc_check_list=None):
     decode_data_list = []
     decode_struct_tolegth = 0
     try:
@@ -3941,9 +4267,26 @@ def decode_hex_frame_list(frame,decode_rule_list,decode_save_list,decode_para_li
                 # print('校验失败:{} {} \nlist:{}'.format(checks,frame[config_sum_check[0]],check_frame.hex()))
         else:
             sum_check_result = 0
+        # frame[config_sum_check[0]] = sum_check_result   
     except Exception as e:
         sum_check_result = 0
         print('使用校验失败:{}'.format(e))
+    try:
+        if config_crc_check_list is not None:
+            for config_crc_check in config_crc_check_list:
+                check_frame = frame[config_crc_check[1]:config_crc_check[2]]
+                crc_cal = calculate_crc16(check_frame)&0xFF
+                if crc_cal==frame[config_crc_check[0]]:
+                    sum_check_result = 1
+                else:
+                    sum_check_result = 0
+                # print('CRC校验失败:{} {} \nlist:{}'.format(crc_cal,frame[config_crc_check[0]],check_frame.hex()))
+        else:
+            sum_check_result = 0
+        # frame[config_crc_check[0]] = sum_check_result
+    except Exception as e:
+        sum_check_result = 0
+        print('使用CRC校验失败:{}'.format(e))
     for i in range(len(decode_edia_list)):
         decode_bit_list = []
         decode_struct = decode_edia_list[i]+''.join(decode_rule_list[i])
@@ -4145,6 +4488,5 @@ if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = MainWindow()
-    mainWindow.show()
+    # mainWindow.show()
     sys.exit(app.exec_())
-    print('fun end')

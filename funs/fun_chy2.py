@@ -142,17 +142,22 @@ def try_return_bdx(data,default=1):
         return try_return_num(data,default)
 def try_return_check(data,type):
     limits = {
-        'b': 256,
-        'B': 256,
-        'h': 65536,
-        'H': 65536,
-        'i': 2**32,
-        'I': 2**32,
-        'q': 2**64,
-        'Q': 2**64
+        'b': 127,
+        'B': 255,
+        'h': 32767,
+        'H': 65535,
+        'i': 2**31-1,
+        'I': 2**32-1,
+        'q': 2**63-1,
+        'Q': 2**64-1
     }
     try:
-        return int(data) % limits[type]
+        data = int(data)
+        if data>limits[type] or data<-limits[type]:
+            return data%limits[type]
+        else:
+            return data
+        # return int(data) % limits[type]
     except:
         return data
 def try_int(data):

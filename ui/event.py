@@ -178,7 +178,7 @@ class MainWindowEvent:
                     self.mw.init_ui.flag_general_tableReady = False
                     table_widget.setItem(ruleCheck[0],3,QTableWidgetItem(send_command_list[ruleCheck[0]].hex().upper()))
                     self.mw.init_ui.flag_general_tableReady = True
-                if (check_type=='crc16')|(check_type=='crc'):
+                if (check_type=='crc16')|(check_type=='crc')|(check_type=='crc_ff'):
                     check_string = b''.join(send_command_list[ruleCheck[1]:ruleCheck[2]])
                     check_crc = calculate_crc16(check_string)
                     check_crc = try_return_check(check_crc,data[ruleCheck[0]][0])
@@ -199,7 +199,16 @@ class MainWindowEvent:
                     self.mw.init_ui.flag_general_tableReady = False
                     table_widget.setItem(ruleCheck[0],3,QTableWidgetItem(send_command_list[ruleCheck[0]].hex().upper()))
                     self.mw.init_ui.flag_general_tableReady = True
-                    
+                elif check_type=='crc_00':
+                    check_string = b''.join(send_command_list[ruleCheck[1]:ruleCheck[2]])
+                    check_crc = calculate_crc16_0x00(check_string)
+                    check_crc = try_return_check(check_crc,data[ruleCheck[0]][0])
+                    send_command_list[ruleCheck[0]] = struct.pack(
+                        struct_head+data[ruleCheck[0]][0],check_crc
+                    )
+                    self.mw.init_ui.flag_general_tableReady = False
+                    table_widget.setItem(ruleCheck[0],3,QTableWidgetItem(send_command_list[ruleCheck[0]].hex().upper()))
+                    self.mw.init_ui.flag_general_tableReady = True
                     
                     
                     

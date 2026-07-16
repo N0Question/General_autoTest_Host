@@ -4,6 +4,11 @@ from funs.fun_locals import *
 from PyQt5 import QtWidgets, QtGui, QtCore
 import pyqtgraph as pg 
 import os,re
+import numpy as np
+import pandas as pd
+import struct
+from pathlib import Path
+import shutil
 
 class MainWindowInit:
     def __init__(self,mainWindow):
@@ -163,34 +168,45 @@ class MainWindowInit:
             
     # 初始化三轴绘图 主绘图区 设置双Y轴绘图 同步更新
     def init_ui_graphview(self):
-        self.default_alpha = 0.6
+        config_background_color = self.mw.init_ini.config_background_color
+        config_line_width = self.mw.init_ini.config_line_width
+        config_main_line_color = self.mw.init_ini.config_main_line_color
+        config_auxiliary_line_color = self.mw.init_ini.config_auxiliary_line_color
+        config_grid_alpha = self.mw.init_ini.config_grid_alpha
+        self.mw.default_alpha = config_grid_alpha
+        config_title_size = self.mw.init_ini.config_title_size
+        self.mw.config_ini_title_size = config_title_size
+        config_title_color = self.mw.init_ini.config_title_color
+        self.mw.config_ini_title_color = config_title_color
         # 初始化绘图元素
+        for graphicsView in [self.mw.graphicsView_gyr_X,self.mw.graphicsView_gyr_Y,self.mw.graphicsView_gyr_Z]:
+            graphicsView.setBackground(config_background_color)
         self.graphicsView_gyr_X_adp = self.mw.graphicsView_gyr_X.addPlot()
         self.graphicsView_gyr_Y_adp = self.mw.graphicsView_gyr_Y.addPlot()
         self.graphicsView_gyr_Z_adp = self.mw.graphicsView_gyr_Z.addPlot()
-        self.graphicsView_gyr_X_adp.showGrid(x=True,y=True,alpha=self.default_alpha)
-        self.graphicsView_gyr_Y_adp.showGrid(x=True,y=True,alpha=self.default_alpha)
-        self.graphicsView_gyr_Z_adp.showGrid(x=True,y=True,alpha=self.default_alpha)
-
-        self.gv_pen_x = self.graphicsView_gyr_X_adp.plot(pen='y')
-        self.gv_pen_y = self.graphicsView_gyr_Y_adp.plot(pen='y')
-        self.gv_pen_z = self.graphicsView_gyr_Z_adp.plot(pen='y')
+        list_graphicsView = [self.graphicsView_gyr_X_adp, self.graphicsView_gyr_Y_adp, self.graphicsView_gyr_Z_adp]
+        self.mw.list_gv_pen = []
+        for graphicsView in list_graphicsView:
+            graphicsView.showGrid(x=True,y=True,alpha=config_grid_alpha)
+            # graphicsView.setTitle(size=config_title_size)
+            self.mw.list_gv_pen.append(graphicsView.plot(pen=pg.mkPen(color=config_main_line_color,width=config_line_width)))
         
-        self.mw.list_gv_pen = [self.gv_pen_x,self.gv_pen_y,self.gv_pen_z]
+        # self.gv_pen_x = self.graphicsView_gyr_X_adp.plot(pen='y')
+        # self.gv_pen_y = self.graphicsView_gyr_Y_adp.plot(pen='y')
+        # self.gv_pen_z = self.graphicsView_gyr_Z_adp.plot(pen='y')
         
-        # self.gv_pen_x2 = self.graphicsView_gyr_X_adp.plot(pen='g')
-        # self.gv_pen_y2 = self.graphicsView_gyr_Y_adp.plot(pen='g')
-        # self.gv_pen_z2 = self.graphicsView_gyr_Z_adp.plot(pen='g')
+        # self.mw.list_gv_pen = [self.gv_pen_x,self.gv_pen_y,self.gv_pen_z]
         
         self.gv_doublePlot_b1 = pg.ViewBox()
         self.graphicsView_gyr_X_adp.scene().addItem(self.gv_doublePlot_b1)
         self.graphicsView_gyr_X_adp.getAxis('right').linkToView(self.gv_doublePlot_b1)
         self.gv_doublePlot_b1.setXLink(self.graphicsView_gyr_X_adp)
-        def updateViewDPb1():
+        def updateViewDPb1(): 
             self.gv_doublePlot_b1.setGeometry(self.graphicsView_gyr_X_adp.getViewBox().sceneBoundingRect())
             self.gv_doublePlot_b1.linkedViewChanged(self.graphicsView_gyr_X_adp.getViewBox(),self.gv_doublePlot_b1.XAxis)
         self.graphicsView_gyr_X_adp.getViewBox().sigResized.connect(updateViewDPb1)
-        self.gv_pen_x2 = pg.PlotDataItem(pen='g')
+        # self.graphicsView_gyr_X_adp.showAxis('right')
+        self.gv_pen_x2 = pg.PlotDataItem(pen=pg.mkPen(color=config_auxiliary_line_color,width=config_line_width))
         self.gv_doublePlot_b1.addItem(self.gv_pen_x2)
         
         self.gv_doublePlot_b2 = pg.ViewBox()
@@ -201,7 +217,8 @@ class MainWindowInit:
             self.gv_doublePlot_b2.setGeometry(self.graphicsView_gyr_Y_adp.getViewBox().sceneBoundingRect())
             self.gv_doublePlot_b2.linkedViewChanged(self.graphicsView_gyr_Y_adp.getViewBox(),self.gv_doublePlot_b2.XAxis)
         self.graphicsView_gyr_Y_adp.getViewBox().sigResized.connect(updateViewDPb2)
-        self.gv_pen_y2 = pg.PlotDataItem(pen='g')
+        # self.graphicsView_gyr_Y_adp.showAxis('right')
+        self.gv_pen_y2 = pg.PlotDataItem(pen=pg.mkPen(color=config_auxiliary_line_color,width=config_line_width))
         self.gv_doublePlot_b2.addItem(self.gv_pen_y2)
         
         self.gv_doublePlot_b3 = pg.ViewBox()
@@ -212,7 +229,8 @@ class MainWindowInit:
             self.gv_doublePlot_b3.setGeometry(self.graphicsView_gyr_Z_adp.getViewBox().sceneBoundingRect())
             self.gv_doublePlot_b3.linkedViewChanged(self.graphicsView_gyr_Z_adp.getViewBox(),self.gv_doublePlot_b3.XAxis)
         self.graphicsView_gyr_Z_adp.getViewBox().sigResized.connect(updateViewDPb3)
-        self.gv_pen_z2 = pg.PlotDataItem(pen='g')
+        # self.graphicsView_gyr_Z_adp.showAxis('right')
+        self.gv_pen_z2 = pg.PlotDataItem(pen=pg.mkPen(color=config_auxiliary_line_color,width=config_line_width))
         self.gv_doublePlot_b3.addItem(self.gv_pen_z2)
         
         

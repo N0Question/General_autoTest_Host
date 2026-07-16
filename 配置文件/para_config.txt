@@ -13,7 +13,7 @@
 5	save_alldata_ms	1	是否保存所有毫秒值 1True/0False
 6	save_alldata_s	1	是否保存所有秒值 1True/0False
 7	save_alldata_calib	0	是否保存19位置标定calib文件 1True/0False
-8	save_alldata_bin	0	是否保存所有16进制原始数
+8	save_alldata_bin	1	是否保存所有16进制原始数
 8	save_readydata_ms	0	是否保存到位毫秒值 1True/0False
 9	save_readydata_s	1	是否保存到位秒值 1True/0False
 11	save_BD_1file	1	将标定过程各点存储到一个文件/0:多个文件----废弃中----
